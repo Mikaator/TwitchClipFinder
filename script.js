@@ -340,8 +340,8 @@ function updateResults() {
         console.log(`Zeige nächste ${nextBatch.length} Clips an`);
         displayNewClips(nextBatch, startIndex);
         
-        // Erstelle Suchleiste beim ersten Laden
-        if (displayedClips.length === nextBatch.length) {
+        // Erstelle Suchleiste nur beim ersten Laden
+        if (displayedClips.length === nextBatch.length && !document.querySelector('.clip-search')) {
             createClipSearch();
         }
     } else {
@@ -377,16 +377,20 @@ function filterClips(e) {
         clipCards.forEach(card => {
             card.style.display = 'block';
         });
+        console.log('Suchleiste leer - zeige alle Clips an');
         return;
     }
     
     // Filtere die Clips basierend auf dem Suchbegriff
+    let visibleCount = 0;
     clipCards.forEach(card => {
         const title = card.querySelector('h3').textContent.toLowerCase();
         const creator = card.querySelector('.fa-video').parentElement.textContent.toLowerCase();
         const matches = title.includes(searchTerm) || creator.includes(searchTerm);
         card.style.display = matches ? 'block' : 'none';
+        if (matches) visibleCount++;
     });
+    console.log(`${visibleCount} Clips nach Suche angezeigt`);
 }
 
 // Event-Listener für Sortierung
