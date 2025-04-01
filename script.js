@@ -240,6 +240,17 @@ async function searchClips() {
         let clips = allClipsTemp;
         console.log(`Insgesamt ${clips.length} Clips geladen`);
 
+        // Filtere nach Datum zuerst
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            clips = clips.filter(clip => {
+                const clipDate = new Date(clip.created_at);
+                return clipDate >= start && clipDate <= end;
+            });
+            console.log(`${clips.length} Clips nach Datum gefiltert`);
+        }
+
         // Filtere nach Suchkriterien
         if (query) {
             clips = clips.filter(clip => {
@@ -249,24 +260,17 @@ async function searchClips() {
                     return clip.creator_name.toLowerCase().includes(query.toLowerCase());
                 }
             });
-        }
-
-        // Filtere nach Datum
-        if (startDate && endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            clips = clips.filter(clip => {
-                const clipDate = new Date(clip.created_at);
-                return clipDate >= start && clipDate <= end;
-            });
+            console.log(`${clips.length} Clips nach Suchkriterien gefiltert`);
         }
 
         // Sortiere Clips
         const sortBy = document.getElementById('sortBy').value;
         clips = sortClips(clips, sortBy);
+        console.log(`Clips nach ${sortBy} sortiert`);
 
         allClips = clips;
         totalClips = clips.length;
+        console.log(`Finale Anzahl der Clips: ${totalClips}`);
         updateResults();
 
         currentSearch = null;
@@ -333,22 +337,18 @@ function updateResults() {
         !displayedClips.some(displayedClip => displayedClip.id === clip.id)
     );
 
-    const nextBatch = remainingClips.slice(0, DISPLAY_BATCH_SIZE);
-    
-    if (nextBatch.length > 0) {
-        displayedClips.push(...nextBatch);
-        const startIndex = displayedClips.length - nextBatch.length;
-        displayNewClips(nextBatch, startIndex);
+    // Zeige alle verbleibenden Clips an
+    if (remainingClips.length > 0) {
+        displayedClips.push(...remainingClips);
+        const startIndex = displayedClips.length - remainingClips.length;
+        displayNewClips(remainingClips, startIndex);
         
-        if (displayedClips.length === nextBatch.length) {
+        if (displayedClips.length === remainingClips.length) {
             createClipSearch();
         }
         
-        if (displayedClips.length < allClips.length) {
-            showLoadMoreButton();
-        } else {
-            hideLoadMoreButton();
-        }
+        // Verstecke den "Mehr laden" Button, da wir jetzt alle Clips auf einmal anzeigen
+        hideLoadMoreButton();
     }
 }
 
