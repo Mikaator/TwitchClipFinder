@@ -236,39 +236,38 @@ async function searchClips() {
 
         } while (cursor);
 
-        let clips = allClipsTemp;
-        console.log(`Insgesamt ${clips.length} Clips geladen`);
+        console.log(`Insgesamt ${allClipsTemp.length} Clips geladen`);
 
         // Filtere nach Datum
         if (startDate && endDate) {
             const start = new Date(startDate);
             const end = new Date(endDate);
-            clips = clips.filter(clip => {
+            allClipsTemp = allClipsTemp.filter(clip => {
                 const clipDate = new Date(clip.created_at);
                 return clipDate >= start && clipDate <= end;
             });
-            console.log(`${clips.length} Clips nach Datum gefiltert`);
+            console.log(`${allClipsTemp.length} Clips nach Datum gefiltert`);
         }
 
         // Filtere nach Suchkriterien
         if (query) {
-            clips = clips.filter(clip => {
+            allClipsTemp = allClipsTemp.filter(clip => {
                 if (searchType === 'title') {
                     return clip.title.toLowerCase().includes(query.toLowerCase());
                 } else {
                     return clip.creator_name.toLowerCase().includes(query.toLowerCase());
                 }
             });
-            console.log(`${clips.length} Clips nach Suchkriterien gefiltert`);
+            console.log(`${allClipsTemp.length} Clips nach Suchkriterien gefiltert`);
         }
 
         // Sortiere Clips
         const sortBy = document.getElementById('sortBy').value;
-        clips = sortClips(clips, sortBy);
+        allClipsTemp = sortClips(allClipsTemp, sortBy);
         console.log(`Clips nach ${sortBy} sortiert`);
 
-        allClips = clips;
-        totalClips = clips.length;
+        allClips = allClipsTemp;
+        totalClips = allClips.length;
         console.log(`Finale Anzahl der Clips: ${totalClips}`);
         
         // Setze die Anzeige zurück
