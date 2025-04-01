@@ -195,7 +195,7 @@ async function searchClips() {
         // Suche Clips mit verbesserter Paginierung
         let allClipsTemp = [];
         let cursor = null;
-        let maxAttempts = 25; // Erhöht von 10 auf 25
+        let maxAttempts = 100; // Erhöht von 25 auf 100 für mehr Clips
         let attempts = 0;
         
         do {
@@ -271,6 +271,13 @@ async function searchClips() {
         allClips = clips;
         totalClips = clips.length;
         console.log(`Finale Anzahl der Clips: ${totalClips}`);
+        
+        // Setze die Anzeige zurück
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '';
+        displayedClips = []; // Setze displayedClips zurück
+        
+        // Lade die ersten 100 Clips
         updateResults();
 
         currentSearch = null;
@@ -311,20 +318,7 @@ function createClipSearch() {
     searchInput.addEventListener('input', filterClips);
 }
 
-// Funktion zum Filtern der Clips
-function filterClips(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const clipCards = document.querySelectorAll('.clip-card');
-    
-    clipCards.forEach(card => {
-        const title = card.querySelector('h3').textContent.toLowerCase();
-        const creator = card.querySelector('.fa-video').parentElement.textContent.toLowerCase();
-        const matches = title.includes(searchTerm) || creator.includes(searchTerm);
-        card.style.display = matches ? 'block' : 'none';
-    });
-}
-
-// Modifiziere updateResults (entferne Counter)
+// Modifiziere updateResults für automatisches Laden
 function updateResults() {
     // Entferne alte Suchleiste, falls vorhanden
     const oldSearch = document.querySelector('.clip-search');
@@ -332,48 +326,63 @@ function updateResults() {
         oldSearch.remove();
     }
 
-    // Entferne Duplikate aus den verbleibenden Clips
+    // Berechne die nächsten 100 Clips
     const remainingClips = allClips.filter(clip => 
         !displayedClips.some(displayedClip => displayedClip.id === clip.id)
     );
 
-    // Zeige alle verbleibenden Clips an
     if (remainingClips.length > 0) {
-        displayedClips.push(...remainingClips);
-        const startIndex = displayedClips.length - remainingClips.length;
-        displayNewClips(remainingClips, startIndex);
+        // Nehme die nächsten 100 Clips
+        const nextBatch = remainingClips.slice(0, 100);
+        displayedClips.push(...nextBatch);
+        const startIndex = displayedClips.length - nextBatch.length;
+        displayNewClips(nextBatch, startIndex);
         
-        if (displayedClips.length === remainingClips.length) {
+        // Erstelle Suchleiste beim ersten Laden
+        if (displayedClips.length === nextBatch.length) {
             createClipSearch();
         }
-        
-        // Verstecke den "Mehr laden" Button, da wir jetzt alle Clips auf einmal anzeigen
-        hideLoadMoreButton();
     }
 }
 
-function showLoadMoreButton() {
-    if (displayedClips.length < allClips.length) {
-        const loadMoreButton = document.getElementById('load-more') || createLoadMoreButton();
-        loadMoreButton.style.display = 'block';
-    }
-}
+// Füge Scroll-Event-Listener hinzu
+let isLoadingMore = false;
 
-function createLoadMoreButton() {
-    const button = document.createElement('button');
-    button.id = 'load-more';
-    button.className = 'load-more-button';
-    button.textContent = 'Weitere Clips laden';
-    button.onclick = updateResults;
-    document.getElementById('results').insertAdjacentElement('afterend', button);
-    return button;
-}
-
-function hideLoadMoreButton() {
-    const button = document.getElementById('load-more');
-    if (button) {
-        button.style.display = 'none';
+window.addEventListener('scroll', () => {
+    // Prüfe, ob wir am Ende der Seite sind
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+        // Verhindere mehrfaches Laden
+        if (!isLoadingMore && displayedClips.length < allClips.length) {
+            isLoadingMore = true;
+            updateResults();
+            // Setze den Lade-Status nach einer kurzen Verzögerung zurück
+            setTimeout(() => {
+                isLoadingMore = false;
+            }, 500);
+        }
     }
+});
+
+// Verbesserte Filterfunktion
+function filterClips(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const clipCards = document.querySelectorAll('.clip-card');
+    
+    // Wenn die Suchleiste leer ist, zeige alle Clips an
+    if (!searchTerm) {
+        clipCards.forEach(card => {
+            card.style.display = 'block';
+        });
+        return;
+    }
+    
+    // Filtere die Clips basierend auf dem Suchbegriff
+    clipCards.forEach(card => {
+        const title = card.querySelector('h3').textContent.toLowerCase();
+        const creator = card.querySelector('.fa-video').parentElement.textContent.toLowerCase();
+        const matches = title.includes(searchTerm) || creator.includes(searchTerm);
+        card.style.display = matches ? 'block' : 'none';
+    });
 }
 
 // Event-Listener für Sortierung
@@ -392,12 +401,6 @@ document.getElementById('sortBy').addEventListener('change', function() {
         // Setze die Anzeige zurück
         const resultsDiv = document.getElementById('results');
         resultsDiv.innerHTML = '';
-        
-        // Entferne den alten "Mehr laden" Button falls vorhanden
-        const oldButton = document.getElementById('load-more');
-        if (oldButton) {
-            oldButton.remove();
-        }
         
         // Zeige die ersten Clips in der neuen Sortierung
         updateResults();
