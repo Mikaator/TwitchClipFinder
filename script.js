@@ -1,5 +1,5 @@
 // Twitch OAuth2 Konfiguration
-const TWITCH_CLIENT_ID = 'nxgr0o7gidify8fewhzrhonzmgo6hy';
+const TWITCH_CLIENT_ID = '5ocmdhr1rwu262aewefy4gz67etzjt';
 const REDIRECT_URI = 'https://mikaator.github.io/TwitchClipFinder/';
 const SCOPES = ['clips:edit', 'user:read:email'];
 
