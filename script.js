@@ -195,6 +195,8 @@ async function searchClips() {
         // Suche Clips mit Paginierung
         let allClipsTemp = [];
         let cursor = null;
+        let maxAttempts = 10; // Maximale Anzahl von API-Aufrufen
+        let attempts = 0;
         
         do {
             const queryParams = `broadcaster_id=${broadcasterId}&first=100${
@@ -209,15 +211,22 @@ async function searchClips() {
             
             if (clipsResponse.data && clipsResponse.data.length > 0) {
                 allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
-                cursor = clipsResponse.pagination.cursor;
-                // Aktualisiere den Ladetext
+                cursor = clipsResponse?.pagination?.cursor;
                 loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
             } else {
                 break;
             }
+
+            attempts++;
+            if (attempts >= maxAttempts) {
+                console.log(`Maximale Anzahl von API-Aufrufen (${maxAttempts}) erreicht`);
+                break;
+            }
+
         } while (cursor);
 
         let clips = allClipsTemp;
+        console.log(`Insgesamt ${clips.length} Clips geladen`);
 
         // Filtere nach Suchkriterien
         if (query) {
@@ -611,8 +620,8 @@ async function downloadClip(clipUrl, filename) {
             throw new Error('Keine Clip-URL vorhanden');
         }
 
-        // Extrahiere Clip-ID
-        const clipId = clipUrl.split('/')[-1].split('?')[0];
+        // Extrahiere Clip-ID korrekt aus der URL
+        const clipId = clipUrl.split('/').pop().split('?')[0];
 
         // Hole Clip-Details
         const clipData = await callTwitchAPI(`clips?id=${clipId}`);
