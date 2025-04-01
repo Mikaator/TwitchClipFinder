@@ -195,13 +195,13 @@ async function searchClips() {
         // Suche Clips mit verbesserter Paginierung
         let allClipsTemp = [];
         let cursor = null;
-        let maxAttempts = 100; // Erhöht von 25 auf 100 für mehr Clips
+        let maxAttempts = 100;
         let attempts = 0;
         
         do {
             const queryParams = new URLSearchParams({
                 broadcaster_id: broadcasterId,
-                first: '100'  // Maximale Anzahl pro Anfrage
+                first: '100'
             });
 
             if (startDate) {
@@ -232,7 +232,6 @@ async function searchClips() {
                 break;
             }
 
-            // Kleine Verzögerung zwischen den Anfragen
             await new Promise(resolve => setTimeout(resolve, 100));
 
         } while (cursor);
@@ -240,7 +239,7 @@ async function searchClips() {
         let clips = allClipsTemp;
         console.log(`Insgesamt ${clips.length} Clips geladen`);
 
-        // Filtere nach Datum zuerst
+        // Filtere nach Datum
         if (startDate && endDate) {
             const start = new Date(startDate);
             const end = new Date(endDate);
@@ -273,9 +272,8 @@ async function searchClips() {
         console.log(`Finale Anzahl der Clips: ${totalClips}`);
         
         // Setze die Anzeige zurück
-        const resultsDiv = document.getElementById('results');
         resultsDiv.innerHTML = '';
-        displayedClips = []; // Setze displayedClips zurück
+        displayedClips = [];
         
         // Lade die ersten 100 Clips
         updateResults();
@@ -285,8 +283,12 @@ async function searchClips() {
         loader.style.display = 'none';
         resultsDiv.style.display = 'grid';
         
+        // Prüfe, ob Clips vorhanden sind
         if (allClips.length === 0) {
+            console.log('Keine Clips gefunden, zeige Meldung');
             resultsDiv.innerHTML = '<div class="no-results">Keine Clips gefunden</div>';
+        } else {
+            console.log(`${allClips.length} Clips werden angezeigt`);
         }
         
     } catch (error) {
@@ -320,28 +322,31 @@ function createClipSearch() {
 
 // Modifiziere updateResults für automatisches Laden
 function updateResults() {
-    // Entferne alte Suchleiste, falls vorhanden
-    const oldSearch = document.querySelector('.clip-search');
-    if (oldSearch) {
-        oldSearch.remove();
-    }
+    console.log('updateResults aufgerufen');
+    console.log(`Anzahl aller Clips: ${allClips.length}`);
+    console.log(`Anzahl angezeigter Clips: ${displayedClips.length}`);
 
     // Berechne die nächsten 100 Clips
     const remainingClips = allClips.filter(clip => 
         !displayedClips.some(displayedClip => displayedClip.id === clip.id)
     );
 
+    console.log(`Verbleibende Clips: ${remainingClips.length}`);
+
     if (remainingClips.length > 0) {
         // Nehme die nächsten 100 Clips
         const nextBatch = remainingClips.slice(0, 100);
         displayedClips.push(...nextBatch);
         const startIndex = displayedClips.length - nextBatch.length;
+        console.log(`Zeige nächste ${nextBatch.length} Clips an`);
         displayNewClips(nextBatch, startIndex);
         
         // Erstelle Suchleiste beim ersten Laden
         if (displayedClips.length === nextBatch.length) {
             createClipSearch();
         }
+    } else {
+        console.log('Keine weiteren Clips zum Anzeigen');
     }
 }
 
