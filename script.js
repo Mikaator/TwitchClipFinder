@@ -192,28 +192,37 @@ async function searchClips() {
         }
         const broadcasterId = userData.data[0].id;
 
-        // Suche Clips mit Paginierung
+        // Suche Clips mit verbesserter Paginierung
         let allClipsTemp = [];
         let cursor = null;
-        let maxAttempts = 10; // Maximale Anzahl von API-Aufrufen
+        let maxAttempts = 25; // Erhöht von 10 auf 25
         let attempts = 0;
         
         do {
-            const queryParams = `broadcaster_id=${broadcasterId}&first=100${
-                startDate ? `&started_at=${startDate}T00:00:00Z` : ''
-            }${
-                endDate ? `&ended_at=${endDate}T23:59:59Z` : ''
-            }${
-                cursor ? `&after=${cursor}` : ''
-            }`;
+            const queryParams = new URLSearchParams({
+                broadcaster_id: broadcasterId,
+                first: '100'  // Maximale Anzahl pro Anfrage
+            });
+
+            if (startDate) {
+                queryParams.append('started_at', `${startDate}T00:00:00Z`);
+            }
+            if (endDate) {
+                queryParams.append('ended_at', `${endDate}T23:59:59Z`);
+            }
+            if (cursor) {
+                queryParams.append('after', cursor);
+            }
             
-            const clipsResponse = await callTwitchAPI(`clips?${queryParams}`);
+            const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`);
             
             if (clipsResponse.data && clipsResponse.data.length > 0) {
                 allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
-                cursor = clipsResponse?.pagination?.cursor;
+                cursor = clipsResponse.pagination?.cursor;
                 loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
+                console.log(`Seite ${attempts + 1}: ${clipsResponse.data.length} Clips geladen`);
             } else {
+                console.log('Keine weiteren Clips gefunden');
                 break;
             }
 
@@ -222,6 +231,9 @@ async function searchClips() {
                 console.log(`Maximale Anzahl von API-Aufrufen (${maxAttempts}) erreicht`);
                 break;
             }
+
+            // Kleine Verzögerung zwischen den Anfragen
+            await new Promise(resolve => setTimeout(resolve, 100));
 
         } while (cursor);
 
