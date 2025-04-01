@@ -266,6 +266,7 @@ async function searchClips() {
         allClipsTemp = sortClips(allClipsTemp, sortBy);
         console.log(`Clips nach ${sortBy} sortiert`);
 
+        // Setze die globalen Arrays
         allClips = allClipsTemp;
         totalClips = allClips.length;
         console.log(`Finale Anzahl der Clips: ${totalClips}`);
@@ -349,21 +350,25 @@ function updateResults() {
     }
 }
 
-// Füge Scroll-Event-Listener hinzu
-let isLoadingMore = false;
-
-window.addEventListener('scroll', () => {
-    // Prüfe, ob wir am Ende der Seite sind
-    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
-        // Verhindere mehrfaches Laden
-        if (!isLoadingMore && displayedClips.length < allClips.length) {
-            isLoadingMore = true;
-            updateResults();
-            // Setze den Lade-Status nach einer kurzen Verzögerung zurück
-            setTimeout(() => {
-                isLoadingMore = false;
-            }, 500);
-        }
+// Event-Listener für Sortierung
+document.getElementById('sortBy').addEventListener('change', function() {
+    if (allClips.length > 0) {
+        // Entferne Duplikate basierend auf der Clip-ID
+        const uniqueClips = [...new Map(allClips.map(clip => [clip.id, clip])).values()];
+        
+        // Sortiere die eindeutigen Clips
+        const sortedClips = sortClips(uniqueClips, this.value);
+        
+        // Aktualisiere die globalen Arrays
+        allClips = sortedClips;
+        displayedClips = [];
+        
+        // Setze die Anzeige zurück
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '';
+        
+        // Zeige die ersten Clips in der neuen Sortierung
+        updateResults();
     }
 });
 
@@ -393,25 +398,21 @@ function filterClips(e) {
     console.log(`${visibleCount} Clips nach Suche angezeigt`);
 }
 
-// Event-Listener für Sortierung
-document.getElementById('sortBy').addEventListener('change', function() {
-    if (allClips.length > 0) {
-        // Entferne Duplikate basierend auf der Clip-ID
-        const uniqueClips = [...new Map(allClips.map(clip => [clip.id, clip])).values()];
-        
-        // Sortiere die eindeutigen Clips
-        const sortedClips = sortClips(uniqueClips, this.value);
-        
-        // Aktualisiere die globalen Arrays
-        allClips = sortedClips;
-        displayedClips = [];
-        
-        // Setze die Anzeige zurück
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '';
-        
-        // Zeige die ersten Clips in der neuen Sortierung
-        updateResults();
+// Füge Scroll-Event-Listener hinzu
+let isLoadingMore = false;
+
+window.addEventListener('scroll', () => {
+    // Prüfe, ob wir am Ende der Seite sind
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+        // Verhindere mehrfaches Laden
+        if (!isLoadingMore && displayedClips.length < allClips.length) {
+            isLoadingMore = true;
+            updateResults();
+            // Setze den Lade-Status nach einer kurzen Verzögerung zurück
+            setTimeout(() => {
+                isLoadingMore = false;
+            }, 500);
+        }
     }
 });
 
