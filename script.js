@@ -192,9 +192,32 @@ async function searchClips() {
         }
         const broadcasterId = userData.data[0].id;
 
-        // Suche Clips mit Zeitspanne
-        const clipsResponse = await callTwitchAPI(`clips?broadcaster_id=${broadcasterId}&first=100${startDate ? `&started_at=${startDate}T00:00:00Z` : ''}${endDate ? `&ended_at=${endDate}T23:59:59Z` : ''}`);
-        let clips = clipsResponse.data || [];
+        // Suche Clips mit Paginierung
+        let allClipsTemp = [];
+        let cursor = null;
+        
+        do {
+            const queryParams = `broadcaster_id=${broadcasterId}&first=100${
+                startDate ? `&started_at=${startDate}T00:00:00Z` : ''
+            }${
+                endDate ? `&ended_at=${endDate}T23:59:59Z` : ''
+            }${
+                cursor ? `&after=${cursor}` : ''
+            }`;
+            
+            const clipsResponse = await callTwitchAPI(`clips?${queryParams}`);
+            
+            if (clipsResponse.data && clipsResponse.data.length > 0) {
+                allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
+                cursor = clipsResponse.pagination.cursor;
+                // Aktualisiere den Ladetext
+                loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
+            } else {
+                break;
+            }
+        } while (cursor);
+
+        let clips = allClipsTemp;
 
         // Filtere nach Suchkriterien
         if (query) {
