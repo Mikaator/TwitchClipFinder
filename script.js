@@ -192,8 +192,8 @@ async function searchClips() {
         }
         const broadcasterId = userData.data[0].id;
 
-        // Suche Clips
-        const clipsResponse = await callTwitchAPI(`clips?broadcaster_id=${broadcasterId}&first=100`);
+        // Suche Clips mit Zeitspanne
+        const clipsResponse = await callTwitchAPI(`clips?broadcaster_id=${broadcasterId}&first=100${startDate ? `&started_at=${startDate}T00:00:00Z` : ''}${endDate ? `&ended_at=${endDate}T23:59:59Z` : ''}`);
         let clips = clipsResponse.data || [];
 
         // Filtere nach Suchkriterien
@@ -440,7 +440,9 @@ const dateConfig = {
     prevArrow: '<i class="fas fa-chevron-left"></i>',
     altInput: true,
     altFormat: "d.m.Y",
-    time_24hr: true
+    time_24hr: true,
+    allowInput: true,
+    disableMobile: true
 }
 
 // Initialisiere Flatpickr für beide Datums-Inputs
@@ -449,7 +451,9 @@ const startDatePicker = flatpickr("#startDate", {
     maxDate: document.getElementById('endDate').value || 'today',
     placeholder: "Von",
     onChange: function(selectedDates, dateStr) {
-        endDatePicker.set('minDate', dateStr);
+        if (selectedDates[0]) {
+            endDatePicker.set('minDate', dateStr);
+        }
     }
 });
 
@@ -459,7 +463,9 @@ const endDatePicker = flatpickr("#endDate", {
     maxDate: 'today',
     placeholder: "Bis",
     onChange: function(selectedDates, dateStr) {
-        startDatePicker.set('maxDate', dateStr);
+        if (selectedDates[0]) {
+            startDatePicker.set('maxDate', dateStr);
+        }
     }
 });
 
