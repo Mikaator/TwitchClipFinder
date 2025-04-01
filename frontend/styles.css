@@ -1,0 +1,1396 @@
+:root {
+    --twitch-purple: #9147ff;
+    --twitch-purple-light: #bf94ff;
+    --background: #0e0e10;
+    --card-bg: #18181b;
+    --card-hover: #1f1f23;
+    --text: #efeff1;
+    --text-light: #adadb8;
+    --border: #303032;
+    --input-bg: #18181b;
+    --gradient: linear-gradient(135deg, #9147ff 0%, #bf94ff 100%);
+}
+
+/* Light Theme Variablen */
+[data-theme="light"] {
+    --background: #f7f7f9;
+    --card-bg: #ffffff;
+    --card-hover: #f5f5f5;
+    --text: #1f1f23;
+    --text-light: #53535f;
+    --border: #e5e5e5;
+    --input-bg: #ffffff;
+}
+
+/* Theme Switcher Styles */
+.theme-switch {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.theme-label {
+    cursor: pointer;
+    width: 80px;
+    height: 40px;
+    background: var(--gradient);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    position: relative;
+    border-radius: 50px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-label i {
+    color: #fff;
+    font-size: 18px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 2;
+}
+
+.toggle-ball {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background: #fff;
+    border-radius: 50%;
+    left: 4px;
+    transform: translateX(0);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Toggle Ball Animation */
+.theme-switch input:checked + .theme-label .toggle-ball {
+    transform: translateX(40px);
+}
+
+.theme-label:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(145, 71, 255, 0.4);
+}
+
+.theme-switch input:checked + .theme-label .fa-sun {
+    color: #ffeb3b;
+}
+
+.theme-switch input:not(:checked) + .theme-label .fa-moon {
+    color: #b4c1ff;
+}
+
+/* Transition für Theme-Wechsel */
+* {
+    transition: background-color 0.3s ease, 
+                color 0.3s ease, 
+                border-color 0.3s ease, 
+                box-shadow 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--background);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 60px;
+    animation: fadeIn 1s ease;
+    flex-wrap: wrap;
+    gap: 30px;
+    position: relative;
+}
+
+.logo-container {
+    position: absolute;
+    left: 0;
+    animation: slideInLeft 1s ease;
+}
+
+.logo-link {
+    display: block;
+    cursor: pointer;
+    transform-origin: center;
+}
+
+.logo {
+    width: 120px;
+    height: auto;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    transition: transform 0.3s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.header-content {
+    text-align: center;
+    width: 100%;
+    padding: 0 120px;
+}
+
+.header h1 {
+    position: relative;
+    font-size: 3.5em;
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, #9147ff 20%, #bf94ff 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: titleFadeIn 1s ease forwards;
+}
+
+.header h1 span {
+    text-shadow: 2px 2px 10px rgba(145, 71, 255, 0.2);
+}
+
+.header .fa-twitch {
+    margin-right: 15px;
+    display: inline-block;
+    animation: bounce 2s infinite;
+}
+
+.header h1::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 4px;
+    background: linear-gradient(90deg, 
+        rgba(145, 71, 255, 0) 0%,
+        rgba(145, 71, 255, 1) 20%,
+        rgba(191, 148, 255, 1) 80%,
+        rgba(191, 148, 255, 0) 100%
+    );
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(145, 71, 255, 0.3);
+    animation: lineExpand 1s ease forwards 0.5s;
+}
+
+@keyframes titleFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes lineExpand {
+    0% {
+        width: 0;
+    }
+    100% {
+        width: 60%;
+    }
+}
+
+.header .fa-twitch {
+    margin-right: 15px;
+    display: inline-block;
+    animation: bounce 2s infinite;
+    filter: drop-shadow(0 0 1px var(--twitch-purple));
+    transition: filter 0.3s ease;
+}
+
+.header .fa-twitch:hover {
+    filter: drop-shadow(0 0 5px var(--twitch-purple));
+}
+
+.subtitle {
+    color: var(--text-light);
+    font-size: 1.2em;
+    margin-top: 20px;
+    opacity: 0;
+    animation: slideUp 0.5s ease forwards 0.5s;
+}
+
+.search-form {
+    position: relative;
+    z-index: 1;
+    background: var(--card-bg);
+    transition: all 0.4s ease;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    margin-bottom: 50px;
+    border: 1px solid var(--border);
+    animation: slideUp 0.5s ease;
+    backdrop-filter: blur(10px);
+}
+
+.search-form:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 45px rgba(0,0,0,0.3);
+}
+
+.search-group, .filter-group {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.input-group, .select-group, .date-group {
+    position: relative;
+    z-index: 1;
+}
+
+.input-group input, .select-group select, .date-group input {
+    position: relative;
+    z-index: 2;
+    background: var(--input-bg);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-group input:focus, 
+.select-group select:focus, 
+.date-group input:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(145, 71, 255, 0.15);
+    background: var(--input-bg);
+    border-color: var(--twitch-purple);
+    outline: none;
+}
+
+.input-group i, .select-group i, .date-group i {
+    z-index: 3;
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--twitch-purple);
+    font-size: 1.2em;
+}
+
+input, select {
+    width: 100%;
+    padding: 15px 20px 15px 55px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    font-size: 16px;
+    background: var(--input-bg);
+    color: var(--text);
+    transition: all 0.3s ease;
+}
+
+input:focus, select:focus {
+    border-color: var(--twitch-purple);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(145, 71, 255, 0.2);
+}
+
+.date-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.search-button {
+    width: 100%;
+    padding: 18px;
+    background: var(--gradient);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.search-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(145, 71, 255, 0.3);
+}
+
+.search-button:active {
+    transform: translateY(0);
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 30px;
+    opacity: 0;
+    animation: fadeIn 0.5s ease forwards;
+}
+
+.clip-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    transform: translateY(20px);
+    opacity: 0;
+    animation: slideUpFade 0.5s ease forwards;
+    border: 1px solid var(--border);
+    position: relative;
+}
+
+.clip-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(145, 71, 255, 0.2);
+    background: var(--card-hover);
+}
+
+.clip-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-bottom: 3px solid transparent;
+    background: var(--gradient);
+    transition: transform 0.3s ease;
+}
+
+.clip-card:hover img {
+    transform: scale(1.05);
+}
+
+.clip-card-content {
+    padding: 25px;
+}
+
+.clip-card h3 {
+    font-size: 1.3em;
+    margin-bottom: 20px;
+    color: var(--text);
+    line-height: 1.4;
+}
+
+.clip-info {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.clip-info p {
+    color: var(--text-light);
+    font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.clip-info i {
+    color: var(--twitch-purple);
+}
+
+.clip-card a {
+    display: inline-block;
+    width: 100%;
+    padding: 12px 25px;
+    background: var(--gradient);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.clip-card a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(145, 71, 255, 0.3);
+}
+
+/* Verbesserte Animationen */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideUpFade {
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-8px);
+    }
+    60% {
+        transform: translateY(-4px);
+    }
+}
+
+/* Loader Styles */
+.loader-container {
+    text-align: center;
+    margin: 30px 0;
+    padding: 30px;
+    animation: fadeIn 0.3s ease;
+}
+
+.loader-text {
+    margin-top: 15px;
+    color: var(--twitch-purple);
+    font-weight: bold;
+    font-size: 1.2em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background-color: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--gradient);
+    animation: progress-animation 1s infinite ease-in-out;
+}
+
+@keyframes progress-animation {
+    0% {
+        width: 0%;
+        margin-left: 0%;
+    }
+    50% {
+        width: 75%;
+        margin-left: 0%;
+    }
+    100% {
+        width: 0%;
+        margin-left: 100%;
+    }
+}
+
+/* Responsive Design Verbesserungen */
+@media (max-width: 768px) {
+    .search-group, .filter-group, .date-filters {
+        grid-template-columns: 1fr;
+    }
+    
+    .header h1 {
+        font-size: 2.5em;
+    }
+    
+    .search-form {
+        padding: 25px;
+    }
+
+    .header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .logo-container {
+        position: relative;
+        left: auto;
+    }
+
+    .header-content {
+        padding: 0;
+    }
+
+    .logo {
+        width: 100px;
+    }
+} 
+
+/* Kalender-Container Styling */
+.date-group {
+    position: relative;
+    cursor: pointer;
+}
+
+.date-group label {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+}
+
+.date-group input[type="date"] {
+    cursor: pointer;
+    position: relative;
+    padding-right: 45px;
+}
+
+/* Verstecke den Standard-Kalender */
+.date-group input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+/* Kalender Icon rechts */
+.date-group i.fa-calendar {
+    left: auto;
+    right: 20px;
+    top: 50%;
+    pointer-events: none;
+    color: var(--twitch-purple);
+}
+
+/* Kalender Dark Mode Styling */
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+    color: var(--text);
+}
+
+input[type="date"]::-webkit-datetime-edit {
+    padding: 0;
+}
+
+/* Kalender Hover Effekt */
+.date-group:hover input {
+    border-color: var(--twitch-purple);
+} 
+
+.clip-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.watch-button, .download-button {
+    display: inline-block;
+    width: 100%;
+    padding: 12px 25px;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.watch-button {
+    background: var(--gradient);
+}
+
+.download-button {
+    background: var(--card-hover);
+    border: 1px solid var(--twitch-purple);
+}
+
+.watch-button:hover, .download-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(145, 71, 255, 0.3);
+}
+
+.watch-button:hover {
+    background: var(--gradient);
+}
+
+.download-button:hover {
+    background: var(--gradient);
+    border-color: transparent;
+}
+
+.clip-actions i {
+    margin-right: 8px;
+} 
+
+/* Logo Styling */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 60px;
+    animation: fadeIn 1s ease;
+    flex-wrap: wrap;
+    gap: 30px;
+}
+
+.logo-container {
+    flex-shrink: 0;
+    animation: slideInLeft 1s ease;
+}
+
+.logo {
+    width: 120px;
+    height: auto;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    transition: transform 0.3s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.header-content {
+    text-align: center;
+    flex-grow: 1;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .logo {
+        width: 100px;
+    }
+} 
+
+/* Animation für den Reload */
+@keyframes smoothSpin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(720deg);
+    }
+}
+
+.logo-link.reloading {
+    animation: smoothSpin 1s cubic-bezier(0.4, 0, 0.2, 1);
+} 
+
+/* Flatpickr Custom Styling */
+.flatpickr-calendar {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
+    border-radius: 12px !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+}
+
+.flatpickr-day {
+    color: var(--text) !important;
+    border-radius: 8px !important;
+    background: var(--card-bg) !important;
+}
+
+.flatpickr-day.selected {
+    background: var(--gradient) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.flatpickr-day:hover {
+    background: var(--card-hover) !important;
+}
+
+.flatpickr-weekdays {
+    background: var(--card-bg) !important;
+}
+
+.flatpickr-weekday {
+    background: var(--card-bg) !important;
+    color: var(--twitch-purple) !important;
+    font-weight: 600 !important;
+}
+
+.flatpickr-months {
+    background: var(--gradient) !important;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 10px 0 !important;
+}
+
+/* Anpassen der Input-Felder */
+.date-group input[type="date"] {
+    cursor: pointer;
+    position: relative;
+    padding-right: 45px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.date-group input[type="date"]::placeholder {
+    color: var(--text-light);
+}
+
+/* Entferne die Labels "Von:" und "Bis:" aus dem HTML */ 
+
+.wait-message {
+    color: var(--text-light);
+    height: 1.2em; /* Feste Höhe für die Nachricht */
+    margin-top: 15px; /* Abstand zum Ladebalken */
+    font-size: 0.9em;
+    text-align: center;
+    transition: opacity 0.5s ease;
+    font-style: italic;
+    min-height: 20px; /* Minimale Höhe um Platz zu reservieren */
+    visibility: hidden; /* Versteckt den Text, behält aber den Platz */
+}
+
+.wait-message.visible {
+    visibility: visible;
+} 
+
+.clip-counter {
+    display: none;
+}
+
+.load-more-button {
+    display: block;
+    margin: 30px auto;
+    padding: 15px 30px;
+    background: var(--gradient);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.load-more-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(145, 71, 255, 0.3);
+}
+
+.load-more-button:active {
+    transform: translateY(0);
+} 
+
+.clip-search {
+    position: sticky;
+    top: 20px;
+    z-index: 100;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: 1px solid var(--border);
+}
+
+.clip-search-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.clip-search-input i {
+    position: absolute;
+    left: 15px;
+    color: var(--twitch-purple);
+    font-size: 1.2em;
+}
+
+.clip-search-input input {
+    width: 100%;
+    padding: 12px 20px 12px 45px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    background: var(--input-bg);
+    color: var(--text);
+    transition: all 0.3s ease;
+}
+
+.clip-search-input input:focus {
+    border-color: var(--twitch-purple);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(145, 71, 255, 0.2);
+}
+
+/* Entferne den alten Counter-Style */
+.clip-counter {
+    display: none;
+} 
+
+.restart-notification {
+    position: fixed;
+    top: -100px;
+    left: 20px;
+    background: var(--gradient);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideDownLeft 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards,
+               slideUpLeft 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards 3s;
+}
+
+@keyframes slideDownLeft {
+    from {
+        top: -100px;
+        opacity: 0;
+    }
+    to {
+        top: 20px;
+        opacity: 1;
+    }
+}
+
+@keyframes slideUpLeft {
+    from {
+        top: 20px;
+        opacity: 1;
+    }
+    to {
+        top: -100px;
+        opacity: 0;
+    }
+}
+
+.restart-notification i {
+    font-size: 1.2em;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+} 
+
+/* Hover-Effekt für Buttons mit Glühen */
+.search-button, .watch-button, .download-button {
+    position: relative;
+    overflow: hidden;
+}
+
+.search-button:after, .watch-button:after, .download-button:after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 70%);
+    transform: rotate(45deg);
+    transition: all 0.3s ease;
+    opacity: 0;
+}
+
+.search-button:hover:after, .watch-button:hover:after, .download-button:hover:after {
+    opacity: 1;
+    transform: rotate(45deg) translate(50%, 50%);
+}
+
+/* Pulsierender Effekt für den Loader */
+.loader-text {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Clip-Karten Hover-Animation */
+.clip-card {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.clip-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 15px 45px rgba(145, 71, 255, 0.2);
+}
+
+.clip-card:hover img {
+    transform: scale(1.1);
+}
+
+/* Input-Feld Focus-Animation */
+.input-group input:focus, .select-group select:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(145, 71, 255, 0.15);
+}
+
+/* Logo-Hover Animation */
+.logo {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo:hover {
+    transform: scale(1.1) rotate(5deg);
+    filter: drop-shadow(0 8px 16px rgba(145, 71, 255, 0.3));
+}
+
+/* Header Title Animation */
+.header h1 {
+    position: relative;
+    font-size: 3.5em;
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, #9147ff 20%, #bf94ff 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: titleFadeIn 1s ease forwards;
+}
+
+.header h1 span {
+    text-shadow: 2px 2px 10px rgba(145, 71, 255, 0.2);
+}
+
+.header .fa-twitch {
+    margin-right: 15px;
+    display: inline-block;
+    animation: bounce 2s infinite;
+}
+
+/* Clip Search Bar Animation */
+.clip-search {
+    animation: slideInTop 0.5s ease;
+}
+
+@keyframes slideInTop {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Icons Hover Animation */
+.clip-info i {
+    transition: transform 0.3s ease;
+}
+
+.clip-card:hover .clip-info i {
+    transform: scale(1.2) rotate(5deg);
+}
+
+/* Theme Switch Animation */
+.theme-label {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    background: var(--gradient);
+}
+
+.theme-label:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(145, 71, 255, 0.4);
+}
+
+/* Search Form Hover Effect */
+.search-form {
+    transition: all 0.4s ease;
+}
+
+.search-form:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 45px rgba(0,0,0,0.3);
+}
+
+/* Load More Button Animation */
+.load-more-button {
+    position: relative;
+    overflow: hidden;
+}
+
+.load-more-button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    100% {
+        left: 100%;
+    }
+} 
+
+/* Bulk Download Button Styling */
+.bulk-download-container {
+    text-align: center;
+    margin: 20px 0;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+.bulk-download-button {
+    position: relative;
+    padding: 15px 60px;
+    background: var(--gradient);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    min-width: 300px;
+    transition: transform 0.4s ease;
+}
+
+.bulk-download-button .button-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    position: relative;
+    z-index: 2;
+    margin-right: 30px;
+}
+
+.bulk-download-button i {
+    font-size: 1.2em;
+}
+
+/* Progress Ring Animation */
+.progress-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.progress-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.progress-ring circle {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.3);
+    stroke-width: 3;
+    stroke-dasharray: 0 100;
+    transition: stroke-dasharray 0.3s ease;
+}
+
+/* Download Count Badge */
+.download-count {
+    position: absolute;
+    top: 50%;
+    right: 25px;
+    transform: translateY(-50%) scale(0);
+    background: white;
+    color: var(--twitch-purple);
+    border-radius: 20px;
+    min-width: 45px;
+    height: 28px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+/* Hover Effects */
+.bulk-download-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(145, 71, 255, 0.3);
+}
+
+.bulk-download-button:hover .button-content {
+    animation: pulseContent 1.5s infinite;
+}
+
+/* Active Download State */
+.bulk-download-button.downloading {
+    animation: none;
+    background: linear-gradient(270deg, #9147ff, #bf94ff);
+    background-size: 200% 100%;
+    animation: gradientMove 2s linear infinite;
+}
+
+.bulk-download-button.downloading .button-content {
+    animation: none;
+}
+
+.bulk-download-button.downloading i {
+    animation: iconPulse 1.5s ease infinite;
+}
+
+.bulk-download-button.downloading .download-count {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
+
+@keyframes iconPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+@keyframes gradientMove {
+    0% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: -100% 50%;
+    }
+}
+
+@keyframes pulseContent {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+} 
+
+.clip-card {
+    position: relative;
+}
+
+.clip-preview {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 2;
+}
+
+.clip-card:hover .clip-preview {
+    opacity: 1;
+} 
+
+/* Cancel Download Button */
+.cancel-download-button {
+    padding: 10px 20px;  /* Kleinere Padding für den Button */
+    background: #ff4757;
+    color: white;
+    border: none;
+    border-radius: 8px;  /* Kleinere Ecken */
+    font-size: 16px;  /* Kleinere Schriftgröße */
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;  /* Abstand zum Download-Button */
+    transition: all 0.4s ease;
+    opacity: 0;  /* Standardmäßig unsichtbar */
+    transform: translateY(-10px);  /* Startposition für die Animation */
+    animation: fadeInUp 0.5s forwards;  /* Animation hinzufügen */
+    display: none;  /* Standardmäßig unsichtbar */
+}
+
+.cancel-download-button.visible {
+    opacity: 1;  /* Sichtbar machen, wenn aktiv */
+    transform: translateY(0);  /* Zurück zur normalen Position */
+}
+
+.cancel-download-button:hover {
+    transform: translateY(-12px);  /* Leicht höher beim Hover */
+    box-shadow: 0 8px 25px rgba(255, 71, 87, 0.3);
+}
+
+/* Container für die Buttons */
+.bulk-download-container {
+    position: relative;  /* Positionierung für die Buttons */
+} 
+
+/* Neue Animation für den Button */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);  /* Startposition */
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);  /* Endposition */
+    }
+}
+
+/* Animation für den Download-Button */
+.bulk-download-container .bulk-download-button.visible {
+    transform: translateX(-10px);  /* Bewege den Button nach links */
+} 
+
+/* Login Container Styles */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    margin: 40px 0;
+    animation: fadeIn 0.5s ease;
+}
+
+.login-box {
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    text-align: center;
+    max-width: 500px;
+    width: 90%;
+    border: 1px solid var(--border);
+}
+
+.login-box h2 {
+    color: var(--text);
+    margin-bottom: 20px;
+    font-size: 2em;
+}
+
+.login-box p {
+    color: var(--text-light);
+    margin-bottom: 30px;
+    font-size: 1.1em;
+}
+
+.twitch-login-button {
+    background: var(--gradient);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 12px;
+    font-size: 1.2em;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 0 auto;
+    transition: all 0.3s ease;
+}
+
+.twitch-login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(145, 71, 255, 0.3);
+}
+
+.twitch-login-button i {
+    font-size: 1.4em;
+}
+
+.logout-button {
+    background: var(--card-hover);
+    color: var(--text);
+    border: 1px solid var(--twitch-purple);
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+.logout-button:hover {
+    background: var(--gradient);
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(145, 71, 255, 0.3);
+} 
