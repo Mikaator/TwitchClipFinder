@@ -242,9 +242,22 @@ async function searchClips() {
         if (startDate && endDate) {
             const start = new Date(startDate);
             const end = new Date(endDate);
+            console.log('Filtere nach Datum:', {
+                startDate: start.toISOString(),
+                endDate: end.toISOString()
+            });
+            
             allClipsTemp = allClipsTemp.filter(clip => {
                 const clipDate = new Date(clip.created_at);
-                return clipDate >= start && clipDate <= end;
+                const isInRange = clipDate >= start && clipDate <= end;
+                if (!isInRange) {
+                    console.log('Clip gefiltert:', {
+                        title: clip.title,
+                        clipDate: clipDate.toISOString(),
+                        created_at: clip.created_at
+                    });
+                }
+                return isInRange;
             });
             console.log(`${allClipsTemp.length} Clips nach Datum gefiltert`);
         }
@@ -282,7 +295,9 @@ async function searchClips() {
         createClipSearch();
 
         currentSearch = null;
-        stopWaitMessageRotation(messageElement);
+        if (messageElement) {
+            stopWaitMessageRotation(messageElement);
+        }
         loader.style.display = 'none';
         resultsDiv.style.display = 'grid';
         
