@@ -238,32 +238,8 @@ async function searchClips() {
 
         console.log(`Insgesamt ${allClipsTemp.length} Clips geladen`);
 
-        // Filtere nach Datum
-        if (startDate && endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            console.log('Filtere nach Datum:', {
-                startDate: start.toISOString(),
-                endDate: end.toISOString()
-            });
-            
-            allClipsTemp = allClipsTemp.filter(clip => {
-                const clipDate = new Date(clip.created_at);
-                const isInRange = clipDate >= start && clipDate <= end;
-                if (!isInRange) {
-                    console.log('Clip gefiltert:', {
-                        title: clip.title,
-                        clipDate: clipDate.toISOString(),
-                        created_at: clip.created_at
-                    });
-                }
-                return isInRange;
-            });
-            console.log(`${allClipsTemp.length} Clips nach Datum gefiltert`);
-        }
-
         // Filtere nach Suchkriterien
-        if (query) {
+        if (query && query.trim() !== '') {
             allClipsTemp = allClipsTemp.filter(clip => {
                 if (searchType === 'title') {
                     return clip.title.toLowerCase().includes(query.toLowerCase());
@@ -272,6 +248,8 @@ async function searchClips() {
                 }
             });
             console.log(`${allClipsTemp.length} Clips nach Suchkriterien gefiltert`);
+        } else {
+            console.log('Keine Suchkriterien aktiv');
         }
 
         // Sortiere Clips
