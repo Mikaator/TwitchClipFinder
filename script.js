@@ -275,8 +275,11 @@ async function searchClips() {
         resultsDiv.innerHTML = '';
         displayedClips = [];
         
-        // Lade die ersten 100 Clips
-        updateResults();
+        // Zeige alle Clips auf einmal an
+        displayNewClips(allClips, 0);
+
+        // Erstelle Suchleiste
+        createClipSearch();
 
         currentSearch = null;
         stopWaitMessageRotation(messageElement);
@@ -320,36 +323,6 @@ function createClipSearch() {
     searchInput.addEventListener('input', filterClips);
 }
 
-// Modifiziere updateResults für automatisches Laden
-function updateResults() {
-    console.log('updateResults aufgerufen');
-    console.log(`Anzahl aller Clips: ${allClips.length}`);
-    console.log(`Anzahl angezeigter Clips: ${displayedClips.length}`);
-
-    // Berechne die nächsten 100 Clips
-    const remainingClips = allClips.filter(clip => 
-        !displayedClips.some(displayedClip => displayedClip.id === clip.id)
-    );
-
-    console.log(`Verbleibende Clips: ${remainingClips.length}`);
-
-    if (remainingClips.length > 0) {
-        // Nehme die nächsten 100 Clips
-        const nextBatch = remainingClips.slice(0, 100);
-        displayedClips.push(...nextBatch);
-        const startIndex = displayedClips.length - nextBatch.length;
-        console.log(`Zeige nächste ${nextBatch.length} Clips an`);
-        displayNewClips(nextBatch, startIndex);
-        
-        // Erstelle Suchleiste nur beim ersten Laden
-        if (displayedClips.length === nextBatch.length && !document.querySelector('.clip-search')) {
-            createClipSearch();
-        }
-    } else {
-        console.log('Keine weiteren Clips zum Anzeigen');
-    }
-}
-
 // Event-Listener für Sortierung
 document.getElementById('sortBy').addEventListener('change', function() {
     if (allClips.length > 0) {
@@ -368,7 +341,7 @@ document.getElementById('sortBy').addEventListener('change', function() {
         resultsDiv.innerHTML = '';
         
         // Zeige die ersten Clips in der neuen Sortierung
-        updateResults();
+        displayNewClips(allClips, 0);
     }
 });
 
@@ -407,7 +380,7 @@ window.addEventListener('scroll', () => {
         // Verhindere mehrfaches Laden
         if (!isLoadingMore && displayedClips.length < allClips.length) {
             isLoadingMore = true;
-            updateResults();
+            displayNewClips(allClips, displayedClips.length);
             // Setze den Lade-Status nach einer kurzen Verzögerung zurück
             setTimeout(() => {
                 isLoadingMore = false;
