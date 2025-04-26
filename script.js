@@ -196,8 +196,8 @@ async function searchClips() {
         let allClipsTemp = [];
         let cursor = null;
         let attempts = 0;
-        let consecutiveErrors = 0; // Zähler für aufeinanderfolgende Fehler
-        
+        let consecutiveErrors = 0;
+
         do {
             const queryParams = new URLSearchParams({
                 broadcaster_id: broadcasterId,
@@ -215,10 +215,15 @@ async function searchClips() {
             }
             
             try {
-                // Setze Timeout für die API-Anfrage auf 10 Sekunden statt Standard
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                // Längere Pause vor jeder Anfrage, besonders wenn es viele Clips gibt
+                const pauseTime = allClipsTemp.length > 500 ? 1000 : 500;
+                await new Promise(resolve => setTimeout(resolve, pauseTime));
                 
+                // Setze längeren Timeout für die API-Anfrage (15 Sekunden)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                
+                console.log(`Sende Anfrage ${attempts + 1} mit Cursor: ${cursor || 'kein Cursor'}`);
                 const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`, {
                     signal: controller.signal
                 });
@@ -229,41 +234,50 @@ async function searchClips() {
                 consecutiveErrors = 0; // Zurücksetzen bei erfolgreicher Anfrage
                 
                 if (clipsResponse.data && clipsResponse.data.length > 0) {
-                    allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
+                    const newClips = clipsResponse.data;
+                    
+                    // Prüfe auf Duplikate in der aktuellen Antwort
+                    const existingIds = new Set(allClipsTemp.map(c => c.id));
+                    const uniqueNewClips = newClips.filter(clip => !existingIds.has(clip.id));
+                    
+                    allClipsTemp = [...allClipsTemp, ...uniqueNewClips];
                     cursor = clipsResponse.pagination?.cursor;
+                    
                     loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
-                    console.log(`Seite ${attempts}: ${clipsResponse.data.length} Clips geladen (Gesamt: ${allClipsTemp.length})`);
+                    console.log(`Seite ${attempts}: ${uniqueNewClips.length} neue Clips geladen (${newClips.length} gesamt, ${allClipsTemp.length} total)`);
+                    
+                    // Wenn alle Clips in dieser Antwort Duplikate waren und es keinen Cursor gibt, sind wir fertig
+                    if (uniqueNewClips.length === 0 && !cursor) {
+                        console.log('Keine neuen einzigartigen Clips mehr gefunden, Suche abgeschlossen');
+                        break;
+                    }
                 } else {
                     console.log('Keine weiteren Clips gefunden');
                     break;
                 }
                 
-                // WICHTIG: Explizite Überprüfung, ob ein Cursor existiert - NUR diese Bedingung entscheidet jetzt
+                // WICHTIG: Explizite Überprüfung, ob ein Cursor existiert
                 if (!cursor || cursor === '') {
                     console.log('Kein weiterer Cursor vorhanden, Suche abgeschlossen');
                     break;
                 }
                 
-                // Längere Pause, um API-Limits zu respektieren
-                await new Promise(resolve => setTimeout(resolve, 300));
-            
             } catch (error) {
                 consecutiveErrors++;
                 console.error(`Fehler beim Laden der Clips (Versuch ${attempts}):`, error);
                 
-                // Bei Timeout oder Netzwerkfehler längere Pause einlegen
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                // Bei einem Fehler längere Pause einlegen und Wartezeit verdoppeln
+                const errorPauseTime = 3000 * Math.min(consecutiveErrors, 3);
+                console.log(`Warte ${errorPauseTime/1000} Sekunden vor dem nächsten Versuch...`);
+                await new Promise(resolve => setTimeout(resolve, errorPauseTime));
                 
-                // Nach drei aufeinanderfolgenden Fehlern abbrechen
-                if (consecutiveErrors >= 3) {
+                // Nach fünf aufeinanderfolgenden Fehlern abbrechen
+                if (consecutiveErrors >= 5) {
                     console.error('Zu viele aufeinanderfolgende Fehler, Suche wird abgebrochen');
                     break;
                 }
-                
-                // Wir versuchen es mit dem gleichen Cursor nochmal (nicht abbrechen)
-                console.log(`Versuche erneut mit dem Cursor: ${cursor || 'kein Cursor'}`);
             }
-        } while (cursor); // Wichtig: Solange ein Cursor existiert, weitermachen
+        } while (cursor || consecutiveErrors > 0); // Entweder Cursor vorhanden oder es gab gerade einen Fehler
 
         console.log(`Insgesamt ${allClipsTemp.length} Clips geladen nach ${attempts} API-Anfragen`);
 
