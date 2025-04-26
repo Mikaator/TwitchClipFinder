@@ -195,7 +195,6 @@ async function searchClips() {
         // Suche Clips mit verbesserter Paginierung
         let allClipsTemp = [];
         let cursor = null;
-        let maxAttempts = 700;
         let attempts = 0;
         
         do {
@@ -214,29 +213,43 @@ async function searchClips() {
                 queryParams.append('after', cursor);
             }
             
-            const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`);
+            try {
+                const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`);
+                
+                attempts++;
+                
+                if (clipsResponse.data && clipsResponse.data.length > 0) {
+                    allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
+                    cursor = clipsResponse.pagination?.cursor;
+                    loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
+                    console.log(`Seite ${attempts}: ${clipsResponse.data.length} Clips geladen (Gesamt: ${allClipsTemp.length})`);
+                } else {
+                    console.log('Keine weiteren Clips gefunden');
+                    break;
+                }
+                
+                // Wenn kein Cursor zurückgegeben wird, sind wir am Ende
+                if (!cursor) {
+                    console.log('Kein weiterer Cursor vorhanden, Suche abgeschlossen');
+                    break;
+                }
+                
+                // Kleine Pause zwischen den Anfragen, um API-Limits zu respektieren
+                await new Promise(resolve => setTimeout(resolve, 100));
             
-            if (clipsResponse.data && clipsResponse.data.length > 0) {
-                allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
-                cursor = clipsResponse.pagination?.cursor;
-                loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
-                console.log(`Seite ${attempts + 1}: ${clipsResponse.data.length} Clips geladen`);
-            } else {
-                console.log('Keine weiteren Clips gefunden');
-                break;
+            } catch (error) {
+                console.error(`Fehler beim Laden der Clips (Versuch ${attempts}):`, error);
+                // Bei API-Fehlern kurze Pause machen und dann weiterprobieren
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Bei wiederholten Fehlern abbrechen
+                if (attempts > 5 && allClipsTemp.length === 0) {
+                    console.error('Zu viele Fehler beim Laden der Clips, Suche wird abgebrochen');
+                    break;
+                }
             }
+        } while (cursor); // Solange fortsetzen, wie ein Cursor vorhanden ist
 
-            attempts++;
-            if (attempts >= maxAttempts) {
-                console.log(`Maximale Anzahl von API-Aufrufen (${maxAttempts}) erreicht`);
-                break;
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-        } while (cursor);
-
-        console.log(`Insgesamt ${allClipsTemp.length} Clips geladen`);
+        console.log(`Insgesamt ${allClipsTemp.length} Clips geladen nach ${attempts} API-Anfragen`);
 
         // Filtere nach Suchkriterien
         if (query && query.trim() !== '') {
