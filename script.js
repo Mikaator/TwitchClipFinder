@@ -195,7 +195,7 @@ async function searchClips() {
         // Suche Clips mit verbesserter Paginierung
         let allClipsTemp = [];
         let cursor = null;
-        let maxAttempts = 100;
+        let maxAttempts = 700;
         let attempts = 0;
         
         do {
