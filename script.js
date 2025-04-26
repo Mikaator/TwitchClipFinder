@@ -254,6 +254,8 @@ async function searchClips() {
 
         // Sortiere Clips
         const sortBy = document.getElementById('sortBy').value;
+        // Entferne Duplikate basierend auf der Clip-ID
+        allClipsTemp = [...new Map(allClipsTemp.map(clip => [clip.id, clip])).values()];
         allClipsTemp = sortClips(allClipsTemp, sortBy);
         console.log(`Clips nach ${sortBy} sortiert`);
 
@@ -401,10 +403,17 @@ function sortClips(clips, sortBy) {
 
 function displayNewClips(clips, startIndex) {
     const resultsDiv = document.getElementById('results');
+    const existingClipIds = new Set(Array.from(resultsDiv.querySelectorAll('.clip-card')).map(card => card.dataset.clipId));
     
     clips.forEach((clip, index) => {
+        // Prüfe, ob dieser Clip bereits angezeigt wird
+        if (existingClipIds.has(clip.id)) {
+            return; // Überspringe diesen Clip
+        }
+        
         const clipCard = document.createElement('div');
         clipCard.className = 'clip-card';
+        clipCard.dataset.clipId = clip.id; // Speichere die Clip-ID für spätere Überprüfungen
         clipCard.style.animationDelay = `${(startIndex + index) * 0.05}s`;
         
         // Bereinige den Titel von Emojis und Sonderzeichen für den Dateinamen
@@ -436,6 +445,9 @@ function displayNewClips(clips, startIndex) {
             </div>
         `;
         resultsDiv.appendChild(clipCard);
+        
+        // Ergänze die lokale Menge der angezeigten Clip-IDs
+        existingClipIds.add(clip.id);
     });
 }
 
