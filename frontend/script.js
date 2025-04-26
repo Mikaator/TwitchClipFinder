@@ -1,5 +1,5 @@
 // Twitch OAuth2 Konfiguration
-const TWITCH_CLIENT_ID = 'nxgr0o7gidify8fewhzrhonzmgo6hy';
+const TWITCH_CLIENT_ID = '5ocmdhr1rwu262aewefy4gz67etzjt';
 const REDIRECT_URI = 'https://mikaator.github.io/TwitchClipFinder/';
 const SCOPES = ['clips:edit', 'user:read:email'];
 
@@ -192,46 +192,99 @@ async function searchClips() {
         }
         const broadcasterId = userData.data[0].id;
 
-        // Suche Clips
-        const clipsResponse = await callTwitchAPI(`clips?broadcaster_id=${broadcasterId}&first=100`);
-        let clips = clipsResponse.data || [];
+        // Suche Clips mit verbesserter Paginierung
+        let allClipsTemp = [];
+        let cursor = null;
+        let maxAttempts = 100;
+        let attempts = 0;
+        
+        do {
+            const queryParams = new URLSearchParams({
+                broadcaster_id: broadcasterId,
+                first: '100'
+            });
+
+            if (startDate) {
+                queryParams.append('started_at', `${startDate}T00:00:00Z`);
+            }
+            if (endDate) {
+                queryParams.append('ended_at', `${endDate}T23:59:59Z`);
+            }
+            if (cursor) {
+                queryParams.append('after', cursor);
+            }
+            
+            const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`);
+            
+            if (clipsResponse.data && clipsResponse.data.length > 0) {
+                allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
+                cursor = clipsResponse.pagination?.cursor;
+                loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
+                console.log(`Seite ${attempts + 1}: ${clipsResponse.data.length} Clips geladen`);
+            } else {
+                console.log('Keine weiteren Clips gefunden');
+                break;
+            }
+
+            attempts++;
+            if (attempts >= maxAttempts) {
+                console.log(`Maximale Anzahl von API-Aufrufen (${maxAttempts}) erreicht`);
+                break;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+        } while (cursor);
+
+        console.log(`Insgesamt ${allClipsTemp.length} Clips geladen`);
 
         // Filtere nach Suchkriterien
-        if (query) {
-            clips = clips.filter(clip => {
+        if (query && query.trim() !== '') {
+            allClipsTemp = allClipsTemp.filter(clip => {
                 if (searchType === 'title') {
                     return clip.title.toLowerCase().includes(query.toLowerCase());
                 } else {
                     return clip.creator_name.toLowerCase().includes(query.toLowerCase());
                 }
             });
-        }
-
-        // Filtere nach Datum
-        if (startDate && endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            clips = clips.filter(clip => {
-                const clipDate = new Date(clip.created_at);
-                return clipDate >= start && clipDate <= end;
-            });
+            console.log(`${allClipsTemp.length} Clips nach Suchkriterien gefiltert`);
+        } else {
+            console.log('Keine Suchkriterien aktiv');
         }
 
         // Sortiere Clips
         const sortBy = document.getElementById('sortBy').value;
-        clips = sortClips(clips, sortBy);
+        allClipsTemp = sortClips(allClipsTemp, sortBy);
+        console.log(`Clips nach ${sortBy} sortiert`);
 
-        allClips = clips;
-        totalClips = clips.length;
-        updateResults();
+        // Setze die globalen Arrays
+        allClips = allClipsTemp;
+        totalClips = allClips.length;
+        console.log(`Finale Anzahl der Clips: ${totalClips}`);
+        
+        // Setze die Anzeige zurück
+        resultsDiv.innerHTML = '';
+        displayedClips = [];
+        
+        // Zeige alle Clips auf einmal an
+        displayNewClips(allClips, 0);
+
+        // Erstelle Suchleiste
+        createClipSearch();
 
         currentSearch = null;
-        stopWaitMessageRotation(messageElement);
+        if (messageElement) {
+            stopWaitMessageRotation(messageElement);
+        }
         loader.style.display = 'none';
         resultsDiv.style.display = 'grid';
         
+        // Prüfe, ob Clips vorhanden sind
         if (allClips.length === 0) {
+            console.log('Keine Clips gefunden, zeige Meldung');
             resultsDiv.innerHTML = '<div class="no-results">Keine Clips gefunden</div>';
+        } else {
+            console.log(`${allClips.length} Clips werden angezeigt`);
         }
         
     } catch (error) {
@@ -263,75 +316,6 @@ function createClipSearch() {
     searchInput.addEventListener('input', filterClips);
 }
 
-// Funktion zum Filtern der Clips
-function filterClips(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const clipCards = document.querySelectorAll('.clip-card');
-    
-    clipCards.forEach(card => {
-        const title = card.querySelector('h3').textContent.toLowerCase();
-        const creator = card.querySelector('.fa-video').parentElement.textContent.toLowerCase();
-        const matches = title.includes(searchTerm) || creator.includes(searchTerm);
-        card.style.display = matches ? 'block' : 'none';
-    });
-}
-
-// Modifiziere updateResults (entferne Counter)
-function updateResults() {
-    // Entferne alte Suchleiste, falls vorhanden
-    const oldSearch = document.querySelector('.clip-search');
-    if (oldSearch) {
-        oldSearch.remove();
-    }
-
-    // Entferne Duplikate aus den verbleibenden Clips
-    const remainingClips = allClips.filter(clip => 
-        !displayedClips.some(displayedClip => displayedClip.id === clip.id)
-    );
-
-    const nextBatch = remainingClips.slice(0, DISPLAY_BATCH_SIZE);
-    
-    if (nextBatch.length > 0) {
-        displayedClips.push(...nextBatch);
-        const startIndex = displayedClips.length - nextBatch.length;
-        displayNewClips(nextBatch, startIndex);
-        
-        if (displayedClips.length === nextBatch.length) {
-            createClipSearch();
-        }
-        
-        if (displayedClips.length < allClips.length) {
-            showLoadMoreButton();
-        } else {
-            hideLoadMoreButton();
-        }
-    }
-}
-
-function showLoadMoreButton() {
-    if (displayedClips.length < allClips.length) {
-        const loadMoreButton = document.getElementById('load-more') || createLoadMoreButton();
-        loadMoreButton.style.display = 'block';
-    }
-}
-
-function createLoadMoreButton() {
-    const button = document.createElement('button');
-    button.id = 'load-more';
-    button.className = 'load-more-button';
-    button.textContent = 'Weitere Clips laden';
-    button.onclick = updateResults;
-    document.getElementById('results').insertAdjacentElement('afterend', button);
-    return button;
-}
-
-function hideLoadMoreButton() {
-    const button = document.getElementById('load-more');
-    if (button) {
-        button.style.display = 'none';
-    }
-}
-
 // Event-Listener für Sortierung
 document.getElementById('sortBy').addEventListener('change', function() {
     if (allClips.length > 0) {
@@ -349,14 +333,52 @@ document.getElementById('sortBy').addEventListener('change', function() {
         const resultsDiv = document.getElementById('results');
         resultsDiv.innerHTML = '';
         
-        // Entferne den alten "Mehr laden" Button falls vorhanden
-        const oldButton = document.getElementById('load-more');
-        if (oldButton) {
-            oldButton.remove();
-        }
-        
         // Zeige die ersten Clips in der neuen Sortierung
-        updateResults();
+        displayNewClips(allClips, 0);
+    }
+});
+
+// Verbesserte Filterfunktion
+function filterClips(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const clipCards = document.querySelectorAll('.clip-card');
+    
+    // Wenn die Suchleiste leer ist, zeige alle Clips an
+    if (!searchTerm) {
+        clipCards.forEach(card => {
+            card.style.display = 'block';
+        });
+        console.log('Suchleiste leer - zeige alle Clips an');
+        return;
+    }
+    
+    // Filtere die Clips basierend auf dem Suchbegriff
+    let visibleCount = 0;
+    clipCards.forEach(card => {
+        const title = card.querySelector('h3').textContent.toLowerCase();
+        const creator = card.querySelector('.fa-video').parentElement.textContent.toLowerCase();
+        const matches = title.includes(searchTerm) || creator.includes(searchTerm);
+        card.style.display = matches ? 'block' : 'none';
+        if (matches) visibleCount++;
+    });
+    console.log(`${visibleCount} Clips nach Suche angezeigt`);
+}
+
+// Füge Scroll-Event-Listener hinzu
+let isLoadingMore = false;
+
+window.addEventListener('scroll', () => {
+    // Prüfe, ob wir am Ende der Seite sind
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+        // Verhindere mehrfaches Laden
+        if (!isLoadingMore && displayedClips.length < allClips.length) {
+            isLoadingMore = true;
+            displayNewClips(allClips, displayedClips.length);
+            // Setze den Lade-Status nach einer kurzen Verzögerung zurück
+            setTimeout(() => {
+                isLoadingMore = false;
+            }, 500);
+        }
     }
 });
 
@@ -440,7 +462,9 @@ const dateConfig = {
     prevArrow: '<i class="fas fa-chevron-left"></i>',
     altInput: true,
     altFormat: "d.m.Y",
-    time_24hr: true
+    time_24hr: true,
+    allowInput: true,
+    disableMobile: true
 }
 
 // Initialisiere Flatpickr für beide Datums-Inputs
@@ -449,7 +473,9 @@ const startDatePicker = flatpickr("#startDate", {
     maxDate: document.getElementById('endDate').value || 'today',
     placeholder: "Von",
     onChange: function(selectedDates, dateStr) {
-        endDatePicker.set('minDate', dateStr);
+        if (selectedDates[0]) {
+            endDatePicker.set('minDate', dateStr);
+        }
     }
 });
 
@@ -459,7 +485,9 @@ const endDatePicker = flatpickr("#endDate", {
     maxDate: 'today',
     placeholder: "Bis",
     onChange: function(selectedDates, dateStr) {
-        startDatePicker.set('maxDate', dateStr);
+        if (selectedDates[0]) {
+            startDatePicker.set('maxDate', dateStr);
+        }
     }
 });
 
@@ -582,8 +610,8 @@ async function downloadClip(clipUrl, filename) {
             throw new Error('Keine Clip-URL vorhanden');
         }
 
-        // Extrahiere Clip-ID
-        const clipId = clipUrl.split('/')[-1].split('?')[0];
+        // Extrahiere Clip-ID korrekt aus der URL
+        const clipId = clipUrl.split('/').pop().split('?')[0];
 
         // Hole Clip-Details
         const clipData = await callTwitchAPI(`clips?id=${clipId}`);
