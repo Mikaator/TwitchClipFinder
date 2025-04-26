@@ -196,6 +196,7 @@ async function searchClips() {
         let allClipsTemp = [];
         let cursor = null;
         let attempts = 0;
+        let consecutiveErrors = 0; // Zähler für aufeinanderfolgende Fehler
         
         do {
             const queryParams = new URLSearchParams({
@@ -214,9 +215,18 @@ async function searchClips() {
             }
             
             try {
-                const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`);
+                // Setze Timeout für die API-Anfrage auf 10 Sekunden statt Standard
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
                 
                 attempts++;
+                consecutiveErrors = 0; // Zurücksetzen bei erfolgreicher Anfrage
                 
                 if (clipsResponse.data && clipsResponse.data.length > 0) {
                     allClipsTemp = [...allClipsTemp, ...clipsResponse.data];
@@ -228,26 +238,32 @@ async function searchClips() {
                     break;
                 }
                 
-                // Wenn kein Cursor zurückgegeben wird, sind wir am Ende
-                if (!cursor) {
+                // WICHTIG: Explizite Überprüfung, ob ein Cursor existiert - NUR diese Bedingung entscheidet jetzt
+                if (!cursor || cursor === '') {
                     console.log('Kein weiterer Cursor vorhanden, Suche abgeschlossen');
                     break;
                 }
                 
-                // Kleine Pause zwischen den Anfragen, um API-Limits zu respektieren
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // Längere Pause, um API-Limits zu respektieren
+                await new Promise(resolve => setTimeout(resolve, 300));
             
             } catch (error) {
+                consecutiveErrors++;
                 console.error(`Fehler beim Laden der Clips (Versuch ${attempts}):`, error);
-                // Bei API-Fehlern kurze Pause machen und dann weiterprobieren
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                // Bei wiederholten Fehlern abbrechen
-                if (attempts > 5 && allClipsTemp.length === 0) {
-                    console.error('Zu viele Fehler beim Laden der Clips, Suche wird abgebrochen');
+                
+                // Bei Timeout oder Netzwerkfehler längere Pause einlegen
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Nach drei aufeinanderfolgenden Fehlern abbrechen
+                if (consecutiveErrors >= 3) {
+                    console.error('Zu viele aufeinanderfolgende Fehler, Suche wird abgebrochen');
                     break;
                 }
+                
+                // Wir versuchen es mit dem gleichen Cursor nochmal (nicht abbrechen)
+                console.log(`Versuche erneut mit dem Cursor: ${cursor || 'kein Cursor'}`);
             }
-        } while (cursor); // Solange fortsetzen, wie ein Cursor vorhanden ist
+        } while (cursor); // Wichtig: Solange ein Cursor existiert, weitermachen
 
         console.log(`Insgesamt ${allClipsTemp.length} Clips geladen nach ${attempts} API-Anfragen`);
 
