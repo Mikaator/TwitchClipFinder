@@ -258,7 +258,7 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
     
     // Wenn wir keinen Zeitraum haben, nur einen Durchlauf
     if (!startDate && !endDate) {
-        await fetchClipsWithPagination(broadcasterId, null, null);
+        allClipsTemp = await fetchClipsWithPagination(broadcasterId, null, null);
         allClips = [...allClips, ...allClipsTemp];
         return;
     }
@@ -284,11 +284,11 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
         allClipsTemp = [];
         cursor = null;
         
-        // Hole Clips für diesen Zeitraum
-        await fetchClipsWithPagination(broadcasterId, formattedStartDate, formattedEndDate);
+        // Hole Clips für diesen Zeitraum und erhalte die bereits gefilterten Clips zurück
+        const filteredClips = await fetchClipsWithPagination(broadcasterId, formattedStartDate, formattedEndDate);
         
-        // Füge die gefundenen Clips zum Gesamtergebnis hinzu
-        allClips = [...allClips, ...allClipsTemp];
+        // Füge nur die gefilterten Clips zum Gesamtergebnis hinzu
+        allClips = [...allClips, ...filteredClips];
         
         // Bereite den nächsten Zeitraum vor
         currentStartDate = new Date(tempEndDate);
@@ -299,6 +299,7 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
     
     // Hilfsfunktion für Pagination innerhalb eines Zeitraums
     async function fetchClipsWithPagination(broadcasterId, startDate, endDate) {
+        let filteredClipsForRange = [];
         cursor = null;
         attempts = 0;
         consecutiveErrors = 0;
@@ -393,17 +394,20 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
 
         // Filtere nach Suchkriterien
         if (query && query.trim() !== '') {
-            allClipsTemp = allClipsTemp.filter(clip => {
+            filteredClipsForRange = allClipsTemp.filter(clip => {
                 if (searchType === 'title') {
                     return clip.title.toLowerCase().includes(query.toLowerCase());
                 } else {
                     return clip.creator_name.toLowerCase().includes(query.toLowerCase());
                 }
             });
-            console.log(`${allClipsTemp.length} Clips nach Suchkriterien gefiltert`);
+            console.log(`${filteredClipsForRange.length} von ${allClipsTemp.length} Clips nach Suchbegriff "${query}" gefiltert`);
         } else {
             console.log('Keine Suchkriterien aktiv');
+            filteredClipsForRange = allClipsTemp; // Wenn kein Suchbegriff vorhanden ist, verwende alle Clips
         }
+        
+        return filteredClipsForRange;
     }
 }
 
