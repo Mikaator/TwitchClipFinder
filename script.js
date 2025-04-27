@@ -401,6 +401,8 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
                 }
             });
             console.log(`${allClipsTemp.length} Clips nach Suchkriterien gefiltert`);
+        } else {
+            console.log('Keine Suchkriterien aktiv');
         }
     }
 }
