@@ -252,57 +252,110 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
     let consecutiveErrors = 0;
     const loaderText = document.querySelector('.loader-text');
     
+    // Fortschrittsanzeige-Elemente
+    const timeProgressFill = document.querySelector('.time-progress-fill');
+    const timeProgressPercentage = document.querySelector('.time-progress-percentage');
+    
     // Ursprünglicher Start- und Endzeitpunkt
     let currentStartDate = startDate ? new Date(`${startDate}T00:00:00Z`) : new Date(0); // Standardmäßig Unix Epoch
     let currentEndDate = endDate ? new Date(`${endDate}T23:59:59Z`) : new Date(); // Standardmäßig jetzt
     
+    // Berechne Gesamtzeitraum in Millisekunden für Fortschrittsanzeige
+    const totalTimeRange = currentEndDate.getTime() - currentStartDate.getTime();
+    
     // Wenn wir keinen Zeitraum haben, nur einen Durchlauf
     if (!startDate && !endDate) {
+        // Setze Fortschritt auf 100%
+        updateTimeProgress(100);
         allClipsTemp = await fetchClipsWithPagination(broadcasterId, null, null);
         allClips = [...allClips, ...allClipsTemp];
         return;
     }
     
-    // Wenn wir einen Zeitraum haben, solange suchen bis der komplette Zeitraum durchsucht ist
-    while (currentStartDate < currentEndDate) {
-        // Setze temporäres Ende auf ein Datum, das den Zeitraum verkleinert (z.B. +30 Tage oder das Ende)
-        let tempEndDate = new Date(currentStartDate);
-        tempEndDate.setDate(tempEndDate.getDate() + 30); // 30 Tage Zeitraum
+    // Recursive function to handle dynamic time range splitting
+    async function processTimeRange(startDate, endDate, segmentDays = 30) {
+        // Berechne das Ende dieses Segments
+        let segmentEndDate = new Date(startDate);
+        segmentEndDate.setDate(segmentEndDate.getDate() + segmentDays);
         
         // Stelle sicher, dass wir nicht über das ursprüngliche Enddatum hinausgehen
-        if (tempEndDate > currentEndDate) {
-            tempEndDate = currentEndDate;
+        if (segmentEndDate > endDate) {
+            segmentEndDate = new Date(endDate);
         }
         
-        const formattedStartDate = currentStartDate.toISOString().split('T')[0];
-        const formattedEndDate = tempEndDate.toISOString().split('T')[0];
+        const formattedStartDate = startDate.toISOString().split('T')[0];
+        const formattedEndDate = segmentEndDate.toISOString().split('T')[0];
         
-        loaderText.textContent = `Lade Clips... (${allClips.length + allClipsTemp.length} gefunden, Zeitraum: ${formattedStartDate} bis ${formattedEndDate})`;
-        console.log(`Suche Clips von ${formattedStartDate} bis ${formattedEndDate}`);
+        // Aktualisiere Fortschritt basierend auf bereits durchsuchtem Zeitraum
+        const searchedTimeRange = startDate.getTime() - currentStartDate.getTime();
+        const progress = Math.min(100, Math.round((searchedTimeRange / totalTimeRange) * 100));
+        updateTimeProgress(progress);
         
-        // Setze temporäre Clips-Sammlung zurück
-        allClipsTemp = [];
-        cursor = null;
+        loaderText.textContent = `Lade Clips... (${allClips.length} gefunden, Zeitraum: ${formattedStartDate} bis ${formattedEndDate})`;
+        console.log(`Suche Clips von ${formattedStartDate} bis ${formattedEndDate} (Segmentgröße: ${segmentDays} Tage)`);
         
         // Hole Clips für diesen Zeitraum und erhalte die bereits gefilterten Clips zurück
-        const filteredClips = await fetchClipsWithPagination(broadcasterId, formattedStartDate, formattedEndDate);
+        const { filteredClips, totalClipsInSegment, reachedLimit } = 
+            await fetchClipsWithPagination(broadcasterId, formattedStartDate, formattedEndDate);
         
         // Füge nur die gefilterten Clips zum Gesamtergebnis hinzu
         allClips = [...allClips, ...filteredClips];
         
-        // Bereite den nächsten Zeitraum vor
-        currentStartDate = new Date(tempEndDate);
-        currentStartDate.setDate(currentStartDate.getDate() + 1); // Starte einen Tag nach dem letzten Ende
+        // Wenn wir das Limit erreicht haben und der Zeitraum größer als 1 Tag ist,
+        // teilen wir den Zeitraum weiter auf
+        if (reachedLimit && segmentDays > 1) {
+            console.log(`Mehr als 1000 Clips im Zeitraum gefunden, teile in kleinere Segmente auf`);
+            
+            // Segment verkleinern
+            const newSegmentDays = Math.max(1, Math.floor(segmentDays / 2));
+            
+            // Aktuelles Segment noch einmal mit kleinerer Segmentgröße verarbeiten
+            await processTimeRange(startDate, segmentEndDate, newSegmentDays);
+        } 
+        // Wenn wir das Ende nicht erreicht haben, fahren wir mit dem nächsten Segment fort
+        else if (segmentEndDate < endDate) {
+            // Nächstes Segment beginnt einen Tag nach dem aktuellen Ende
+            const nextStartDate = new Date(segmentEndDate);
+            nextStartDate.setDate(nextStartDate.getDate() + 1);
+            
+            // Aktualisiere Fortschritt mit dem abgeschlossenen Segment
+            const segmentTimeRange = segmentEndDate.getTime() - currentStartDate.getTime();
+            const segmentProgress = Math.min(100, Math.round((segmentTimeRange / totalTimeRange) * 100));
+            updateTimeProgress(segmentProgress);
+            
+            // Wenn wir das Limit erreicht haben, verkleinern wir künftige Segmente vorsorglich
+            const nextSegmentDays = reachedLimit ? Math.max(1, Math.floor(segmentDays / 2)) : segmentDays;
+            
+            // Rekursiv zum nächsten Segment
+            await processTimeRange(nextStartDate, endDate, nextSegmentDays);
+        } else {
+            // Wenn wir fertig sind, setze den Fortschritt auf 100%
+            updateTimeProgress(100);
+        }
         
         console.log(`Zwischenstand: ${allClips.length} Clips insgesamt gefunden`);
     }
     
+    // Funktion zum Aktualisieren der Fortschrittsanzeige
+    function updateTimeProgress(percentage) {
+        timeProgressFill.style.width = `${percentage}%`;
+        timeProgressPercentage.textContent = `${percentage}%`;
+    }
+    
+    // Initialisiere Fortschrittsanzeige
+    updateTimeProgress(0);
+    
+    // Starte die rekursive Verarbeitung mit initialer Segmentgröße von 30 Tagen
+    await processTimeRange(currentStartDate, currentEndDate, 30);
+    
     // Hilfsfunktion für Pagination innerhalb eines Zeitraums
     async function fetchClipsWithPagination(broadcasterId, startDate, endDate) {
         let filteredClipsForRange = [];
+        let allClipsTemp = [];
         cursor = null;
         attempts = 0;
         consecutiveErrors = 0;
+        let reachedLimit = false;
         
         do {
             const queryParams = new URLSearchParams({
@@ -329,9 +382,18 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
                 
-                // Debug-Ausgabe, um zu prüfen, ob wir bei 1000 Clips aufhören
+                // Überprüfe, ob wir das Limit erreicht haben
                 if (allClipsTemp.length >= 990) {
                     console.log(`DEBUG: Wir haben ${allClipsTemp.length} Clips gefunden. Cursor: ${cursor || 'kein Cursor'}`);
+                    reachedLimit = true;
+                    
+                    // Bei sehr kurzen Zeiträumen (1 Tag) sammeln wir trotzdem bis zu 1000 Clips
+                    if (startDate === endDate || !startDate || !endDate) {
+                        console.log(`Zeitraum ist minimal oder nicht spezifiziert, sammle trotzdem bis zu 1000 Clips`);
+                    } else {
+                        console.log(`Limit von 1000 Clips erreicht. Zeitraum wird weiter aufgeteilt.`);
+                        break;
+                    }
                 }
                 
                 console.log(`Sende Anfrage ${attempts + 1} mit Cursor: ${cursor || 'kein Cursor'}`);
@@ -407,7 +469,11 @@ async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query,
             filteredClipsForRange = allClipsTemp; // Wenn kein Suchbegriff vorhanden ist, verwende alle Clips
         }
         
-        return filteredClipsForRange;
+        return { 
+            filteredClips: filteredClipsForRange, 
+            totalClipsInSegment: allClipsTemp.length,
+            reachedLimit: reachedLimit
+        };
     }
 }
 
@@ -741,21 +807,57 @@ async function downloadClip(clipUrl, filename) {
     }
 
     const clip = clipData.data[0];
-    const videoUrl = clip.thumbnail_url.replace('-preview-480x272.jpg', '.mp4');
+    
+    // Verwende die neue Methode, um die Download-URL zu erhalten
+    // thumbnail_url sieht aus wie: https://clips-media-assets2.twitch.tv/AT-cm%7C1234567890-preview-480x272.jpg
+    // Wir benötigen: https://production.assets.clips.twitchcdn.net/AT-cm%7C1234567890.mp4
+    
+    // Extrahiere die ID aus der thumbnail_url
+    let clipSlug = clip.thumbnail_url.split('-preview-')[0];
+    clipSlug = clipSlug.substring(clipSlug.lastIndexOf('/') + 1);
+    
+    // Baue die neue Download-URL
+    const videoUrl = `https://production.assets.clips.twitchcdn.net/${clipSlug}.mp4`;
+    
+    console.log('Versuche, Clip herunterzuladen:', videoUrl);
 
     // Download durchführen
-    const response = await fetch(videoUrl);
-    if (!response.ok) throw new Error('Download fehlgeschlagen');
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename + '.mp4';
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
+    try {
+        const response = await fetch(videoUrl);
+        if (!response.ok) {
+            console.error('Erster Download-Versuch fehlgeschlagen. Probiere alternative URL...');
+            
+            // Alternative URL-Format versuchen
+            const alternativeUrl = `https://clips-media-assets2.twitch.tv/${clipSlug}.mp4`;
+            console.log('Versuche alternative URL:', alternativeUrl);
+            
+            const altResponse = await fetch(alternativeUrl);
+            if (!altResponse.ok) {
+                throw new Error('Download fehlgeschlagen. Clip ist möglicherweise nicht mehr verfügbar.');
+            }
+            
+            const blob = await altResponse.blob();
+            triggerDownload(blob, filename);
+        } else {
+            const blob = await response.blob();
+            triggerDownload(blob, filename);
+        }
+    } catch (error) {
+        console.error('Download-Fehler:', error);
+        throw error;
+    }
+    
+    // Hilfsfunktion für den Download
+    function triggerDownload(blob, filename) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename + '.mp4';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    }
 }
 
 // Funktion zum Herunterladen aller Clips
