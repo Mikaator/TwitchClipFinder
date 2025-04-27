@@ -832,8 +832,9 @@ async function downloadClip(clipUrl, filename) {
     }
 
     // Extrahiere Clip-ID korrekt aus der URL
-    // clipUrl Format: https://clips.twitch.tv/AbcDefGhiJklMno
-    const clipId = clipUrl.split('/').pop().split('?')[0];
+    // clipUrl Format: https://clips.twitch.tv/AbcDefGhiJklMno oder https://www.twitch.tv/channelname/clip/AbcDefGhiJklMno
+    const urlParts = clipUrl.split('/');
+    const clipId = urlParts[urlParts.length - 1].split('?')[0];
 
     try {
         // Hole Clip-Details
@@ -844,38 +845,11 @@ async function downloadClip(clipUrl, filename) {
 
         const clip = clipData.data[0];
         console.log('Clip-Details:', clip);
+        console.log('Thumbnail URL:', clip.thumbnail_url);
         
-        // Extrahiere korrekten Slug aus der thumbnail_url
-        // Format: https://clips-media-assets2.twitch.tv/SLUG-preview-480x272.jpg
-        if (!clip.thumbnail_url) {
-            throw new Error('Clip hat kein Thumbnail');
-        }
-        
-        // Extrahiere die ID aus der thumbnail_url
-        const thumbnailUrl = clip.thumbnail_url;
-        const parts = thumbnailUrl.split('-preview-');
-        
-        if (parts.length < 2) {
-            throw new Error('Ungültiges Thumbnail-URL-Format');
-        }
-        
-        let clipSlug = parts[0];
-        clipSlug = clipSlug.substring(clipSlug.lastIndexOf('/') + 1);
-        
-        if (!clipSlug) {
-            throw new Error('Konnte Clip-Slug nicht extrahieren');
-        }
-        
-        console.log('Extrahierter Clip-Slug:', clipSlug);
-        
-        // Da wir aufgrund von CORS-Einschränkungen den Clip nicht direkt herunterladen können,
-        // leiten wir den Benutzer zu einem URL-Downloader um, der die MP4-Datei herunterladen kann
-        
-        const clipMp4Url = `https://production.assets.clips.twitchcdn.net/${clipSlug}.mp4`;
-        console.log('Clip MP4 URL:', clipMp4Url);
-        
-        // Öffne den Twitch-Clip in einem neuen Tab - der Benutzer kann von dort herunterladen
-        window.open(clipUrl, '_blank');
+        // Direkt den Clip in einem neuen Tab öffnen, statt zu versuchen, ihn herunterzuladen
+        // Dies umgeht die CORS-Einschränkungen
+        window.open(clip.url, '_blank');
         
         // Zeige eine Anleitung zum manuellen Herunterladen
         alert(`Aufgrund technischer Einschränkungen können wir den Clip nicht direkt herunterladen. 
