@@ -614,13 +614,45 @@ function displayNewClips(clips, startIndex) {
                     <a href="${clip.url}" target="_blank" class="watch-button">
                         <i class="fas fa-play"></i> Clip ansehen
                     </a>
-                    <button onclick="downloadClip('${clip.url}', '${filename}')" class="download-button">
+                    <button class="download-button">
                         <i class="fas fa-download"></i> Clip herunterladen
                     </button>
                 </div>
             </div>
         `;
         resultsDiv.appendChild(clipCard);
+        
+        // Event-Listener für den Download-Button, statt inline onclick
+        const downloadButton = clipCard.querySelector('.download-button');
+        downloadButton.addEventListener('click', async () => {
+            try {
+                // Button-Status während des Downloads anzeigen
+                const originalText = downloadButton.innerHTML;
+                downloadButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wird heruntergeladen...';
+                downloadButton.disabled = true;
+                
+                // Clip herunterladen
+                await downloadClip(clip.url, filename);
+                
+                // Status nach erfolgreichem Download
+                downloadButton.innerHTML = '<i class="fas fa-check"></i> Heruntergeladen';
+                
+                // Nach kurzer Zeit zurücksetzen
+                setTimeout(() => {
+                    downloadButton.innerHTML = originalText;
+                    downloadButton.disabled = false;
+                }, 3000);
+            } catch (error) {
+                console.error('Fehler beim Herunterladen:', error);
+                downloadButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Fehler';
+                
+                // Nach kurzer Zeit zurücksetzen
+                setTimeout(() => {
+                    downloadButton.innerHTML = originalText;
+                    downloadButton.disabled = false;
+                }, 3000);
+            }
+        });
         
         // Ergänze die lokale Menge der angezeigten Clip-IDs
         existingClipIds.add(clip.id);
