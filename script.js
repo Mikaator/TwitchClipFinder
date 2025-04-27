@@ -192,118 +192,18 @@ async function searchClips() {
         }
         const broadcasterId = userData.data[0].id;
 
-        // Suche Clips mit verbesserter Paginierung
-        let allClipsTemp = [];
-        let cursor = null;
-        let attempts = 0;
-        let consecutiveErrors = 0;
+        // Suche Clips mit verbesserter Paginierung und automatischer Aufteilung des Zeitraums
+        await searchClipsForTimeRange(broadcasterId, startDate, endDate, query, searchType);
 
-        do {
-            const queryParams = new URLSearchParams({
-                broadcaster_id: broadcasterId,
-                first: '100'
-            });
-
-            if (startDate) {
-                queryParams.append('started_at', `${startDate}T00:00:00Z`);
-            }
-            if (endDate) {
-                queryParams.append('ended_at', `${endDate}T23:59:59Z`);
-            }
-            if (cursor) {
-                queryParams.append('after', cursor);
-            }
-            
-            try {
-                // Längere Pause vor jeder Anfrage, besonders wenn es viele Clips gibt
-                const pauseTime = allClipsTemp.length > 500 ? 1000 : 500;
-                await new Promise(resolve => setTimeout(resolve, pauseTime));
-                
-                // Setze längeren Timeout für die API-Anfrage (15 Sekunden)
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
-                
-                console.log(`Sende Anfrage ${attempts + 1} mit Cursor: ${cursor || 'kein Cursor'}`);
-                const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`, {
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                attempts++;
-                consecutiveErrors = 0; // Zurücksetzen bei erfolgreicher Anfrage
-                
-                if (clipsResponse.data && clipsResponse.data.length > 0) {
-                    const newClips = clipsResponse.data;
-                    
-                    // Prüfe auf Duplikate in der aktuellen Antwort
-                    const existingIds = new Set(allClipsTemp.map(c => c.id));
-                    const uniqueNewClips = newClips.filter(clip => !existingIds.has(clip.id));
-                    
-                    allClipsTemp = [...allClipsTemp, ...uniqueNewClips];
-                    cursor = clipsResponse.pagination?.cursor;
-                    
-                    loaderText.textContent = `Lade Clips... (${allClipsTemp.length} gefunden)`;
-                    console.log(`Seite ${attempts}: ${uniqueNewClips.length} neue Clips geladen (${newClips.length} gesamt, ${allClipsTemp.length} total)`);
-                    
-                    // Wenn alle Clips in dieser Antwort Duplikate waren und es keinen Cursor gibt, sind wir fertig
-                    if (uniqueNewClips.length === 0 && !cursor) {
-                        console.log('Keine neuen einzigartigen Clips mehr gefunden, Suche abgeschlossen');
-                        break;
-                    }
-                } else {
-                    console.log('Keine weiteren Clips gefunden');
-                    break;
-                }
-                
-                // WICHTIG: Explizite Überprüfung, ob ein Cursor existiert
-                if (!cursor || cursor === '') {
-                    console.log('Kein weiterer Cursor vorhanden, Suche abgeschlossen');
-                    break;
-                }
-                
-            } catch (error) {
-                consecutiveErrors++;
-                console.error(`Fehler beim Laden der Clips (Versuch ${attempts}):`, error);
-                
-                // Bei einem Fehler längere Pause einlegen und Wartezeit verdoppeln
-                const errorPauseTime = 3000 * Math.min(consecutiveErrors, 3);
-                console.log(`Warte ${errorPauseTime/1000} Sekunden vor dem nächsten Versuch...`);
-                await new Promise(resolve => setTimeout(resolve, errorPauseTime));
-                
-                // Nach fünf aufeinanderfolgenden Fehlern abbrechen
-                if (consecutiveErrors >= 5) {
-                    console.error('Zu viele aufeinanderfolgende Fehler, Suche wird abgebrochen');
-                    break;
-                }
-            }
-        } while (cursor || consecutiveErrors > 0); // Entweder Cursor vorhanden oder es gab gerade einen Fehler
-
-        console.log(`Insgesamt ${allClipsTemp.length} Clips geladen nach ${attempts} API-Anfragen`);
-
-        // Filtere nach Suchkriterien
-        if (query && query.trim() !== '') {
-            allClipsTemp = allClipsTemp.filter(clip => {
-                if (searchType === 'title') {
-                    return clip.title.toLowerCase().includes(query.toLowerCase());
-                } else {
-                    return clip.creator_name.toLowerCase().includes(query.toLowerCase());
-                }
-            });
-            console.log(`${allClipsTemp.length} Clips nach Suchkriterien gefiltert`);
-        } else {
-            console.log('Keine Suchkriterien aktiv');
-        }
+        console.log(`Insgesamt ${allClips.length} Clips geladen`);
 
         // Sortiere Clips
         const sortBy = document.getElementById('sortBy').value;
         // Entferne Duplikate basierend auf der Clip-ID
-        allClipsTemp = [...new Map(allClipsTemp.map(clip => [clip.id, clip])).values()];
-        allClipsTemp = sortClips(allClipsTemp, sortBy);
+        allClips = [...new Map(allClips.map(clip => [clip.id, clip])).values()];
+        allClips = sortClips(allClips, sortBy);
         console.log(`Clips nach ${sortBy} sortiert`);
 
-        // Setze die globalen Arrays
-        allClips = allClipsTemp;
         totalClips = allClips.length;
         console.log(`Finale Anzahl der Clips: ${totalClips}`);
         
@@ -341,6 +241,167 @@ async function searchClips() {
         stopWaitMessageRotation(messageElement);
         loader.style.display = 'none';
         resultsDiv.style.display = 'grid';
+    }
+}
+
+// Neue Funktion zur Suche von Clips in einem bestimmten Zeitraum mit automatischer Aufteilung
+async function searchClipsForTimeRange(broadcasterId, startDate, endDate, query, searchType) {
+    let allClipsTemp = [];
+    let cursor = null;
+    let attempts = 0;
+    let consecutiveErrors = 0;
+    const loaderText = document.querySelector('.loader-text');
+    
+    // Ursprünglicher Start- und Endzeitpunkt
+    let currentStartDate = startDate ? new Date(`${startDate}T00:00:00Z`) : new Date(0); // Standardmäßig Unix Epoch
+    let currentEndDate = endDate ? new Date(`${endDate}T23:59:59Z`) : new Date(); // Standardmäßig jetzt
+    
+    // Wenn wir keinen Zeitraum haben, nur einen Durchlauf
+    if (!startDate && !endDate) {
+        await fetchClipsWithPagination(broadcasterId, null, null);
+        allClips = [...allClips, ...allClipsTemp];
+        return;
+    }
+    
+    // Wenn wir einen Zeitraum haben, solange suchen bis der komplette Zeitraum durchsucht ist
+    while (currentStartDate < currentEndDate) {
+        // Setze temporäres Ende auf ein Datum, das den Zeitraum verkleinert (z.B. +30 Tage oder das Ende)
+        let tempEndDate = new Date(currentStartDate);
+        tempEndDate.setDate(tempEndDate.getDate() + 30); // 30 Tage Zeitraum
+        
+        // Stelle sicher, dass wir nicht über das ursprüngliche Enddatum hinausgehen
+        if (tempEndDate > currentEndDate) {
+            tempEndDate = currentEndDate;
+        }
+        
+        const formattedStartDate = currentStartDate.toISOString().split('T')[0];
+        const formattedEndDate = tempEndDate.toISOString().split('T')[0];
+        
+        loaderText.textContent = `Lade Clips... (${allClips.length + allClipsTemp.length} gefunden, Zeitraum: ${formattedStartDate} bis ${formattedEndDate})`;
+        console.log(`Suche Clips von ${formattedStartDate} bis ${formattedEndDate}`);
+        
+        // Setze temporäre Clips-Sammlung zurück
+        allClipsTemp = [];
+        cursor = null;
+        
+        // Hole Clips für diesen Zeitraum
+        await fetchClipsWithPagination(broadcasterId, formattedStartDate, formattedEndDate);
+        
+        // Füge die gefundenen Clips zum Gesamtergebnis hinzu
+        allClips = [...allClips, ...allClipsTemp];
+        
+        // Bereite den nächsten Zeitraum vor
+        currentStartDate = new Date(tempEndDate);
+        currentStartDate.setDate(currentStartDate.getDate() + 1); // Starte einen Tag nach dem letzten Ende
+        
+        console.log(`Zwischenstand: ${allClips.length} Clips insgesamt gefunden`);
+    }
+    
+    // Hilfsfunktion für Pagination innerhalb eines Zeitraums
+    async function fetchClipsWithPagination(broadcasterId, startDate, endDate) {
+        cursor = null;
+        attempts = 0;
+        consecutiveErrors = 0;
+        
+        do {
+            const queryParams = new URLSearchParams({
+                broadcaster_id: broadcasterId,
+                first: '100'
+            });
+
+            if (startDate) {
+                queryParams.append('started_at', `${startDate}T00:00:00Z`);
+            }
+            if (endDate) {
+                queryParams.append('ended_at', `${endDate}T23:59:59Z`);
+            }
+            if (cursor) {
+                queryParams.append('after', cursor);
+            }
+            
+            try {
+                // Längere Pause vor jeder Anfrage, besonders wenn es viele Clips gibt
+                const pauseTime = allClipsTemp.length > 500 ? 1000 : 500;
+                await new Promise(resolve => setTimeout(resolve, pauseTime));
+                
+                // Setze längeren Timeout für die API-Anfrage (15 Sekunden)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                
+                // Debug-Ausgabe, um zu prüfen, ob wir bei 1000 Clips aufhören
+                if (allClipsTemp.length >= 990) {
+                    console.log(`DEBUG: Wir haben ${allClipsTemp.length} Clips gefunden. Cursor: ${cursor || 'kein Cursor'}`);
+                }
+                
+                console.log(`Sende Anfrage ${attempts + 1} mit Cursor: ${cursor || 'kein Cursor'}`);
+                const clipsResponse = await callTwitchAPI(`clips?${queryParams.toString()}`, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                attempts++;
+                consecutiveErrors = 0; // Zurücksetzen bei erfolgreicher Anfrage
+                
+                if (clipsResponse.data && clipsResponse.data.length > 0) {
+                    const newClips = clipsResponse.data;
+                    
+                    // Prüfe auf Duplikate in der aktuellen Antwort
+                    const existingIds = new Set(allClipsTemp.map(c => c.id));
+                    const uniqueNewClips = newClips.filter(clip => !existingIds.has(clip.id));
+                    
+                    allClipsTemp = [...allClipsTemp, ...uniqueNewClips];
+                    cursor = clipsResponse.pagination?.cursor;
+                    
+                    loaderText.textContent = `Lade Clips... (${allClips.length + allClipsTemp.length} gefunden)`;
+                    console.log(`Seite ${attempts}: ${uniqueNewClips.length} neue Clips geladen (${newClips.length} gesamt, ${allClipsTemp.length} in diesem Zeitraum, ${allClips.length + allClipsTemp.length} total)`);
+                    
+                    // Wenn alle Clips in dieser Antwort Duplikate waren und es keinen Cursor gibt, sind wir fertig
+                    if (uniqueNewClips.length === 0 && !cursor) {
+                        console.log('Keine neuen einzigartigen Clips mehr gefunden, Suche abgeschlossen');
+                        break;
+                    }
+                } else {
+                    console.log('Keine weiteren Clips gefunden');
+                    break;
+                }
+                
+                // WICHTIG: Explizite Überprüfung, ob ein Cursor existiert
+                if (!cursor || cursor === '') {
+                    console.log('Kein weiterer Cursor vorhanden, Suche abgeschlossen');
+                    break;
+                }
+                
+            } catch (error) {
+                consecutiveErrors++;
+                console.error(`Fehler beim Laden der Clips (Versuch ${attempts}):`, error);
+                
+                // Bei einem Fehler längere Pause einlegen und Wartezeit verdoppeln
+                const errorPauseTime = 3000 * Math.min(consecutiveErrors, 3);
+                console.log(`Warte ${errorPauseTime/1000} Sekunden vor dem nächsten Versuch...`);
+                await new Promise(resolve => setTimeout(resolve, errorPauseTime));
+                
+                // Nach fünf aufeinanderfolgenden Fehlern abbrechen
+                if (consecutiveErrors >= 5) {
+                    console.error('Zu viele aufeinanderfolgende Fehler, Suche wird abgebrochen');
+                    break;
+                }
+            }
+        } while (cursor || consecutiveErrors > 0); // Entweder Cursor vorhanden oder es gab gerade einen Fehler
+
+        console.log(`Insgesamt ${allClipsTemp.length} Clips geladen nach ${attempts} API-Anfragen für diesen Zeitraum`);
+
+        // Filtere nach Suchkriterien
+        if (query && query.trim() !== '') {
+            allClipsTemp = allClipsTemp.filter(clip => {
+                if (searchType === 'title') {
+                    return clip.title.toLowerCase().includes(query.toLowerCase());
+                } else {
+                    return clip.creator_name.toLowerCase().includes(query.toLowerCase());
+                }
+            });
+            console.log(`${allClipsTemp.length} Clips nach Suchkriterien gefiltert`);
+        }
     }
 }
 
@@ -660,41 +721,35 @@ function stopWaitMessageRotation(messageElement) {
 
 // Clip Download
 async function downloadClip(clipUrl, filename) {
-    try {
-        if (!clipUrl) {
-            throw new Error('Keine Clip-URL vorhanden');
-        }
-
-        // Extrahiere Clip-ID korrekt aus der URL
-        const clipId = clipUrl.split('/').pop().split('?')[0];
-
-        // Hole Clip-Details
-        const clipData = await callTwitchAPI(`clips?id=${clipId}`);
-        if (!clipData.data || clipData.data.length === 0) {
-            throw new Error('Clip nicht gefunden');
-        }
-
-        const clip = clipData.data[0];
-        const videoUrl = clip.thumbnail_url.replace('-preview-480x272.jpg', '.mp4');
-
-        // Download durchführen
-        const response = await fetch(videoUrl);
-        if (!response.ok) throw new Error('Download fehlgeschlagen');
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename + '.mp4';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
-
-    } catch (error) {
-        console.error('Download Error:', error);
-        alert(error.message);
+    if (!clipUrl) {
+        throw new Error('Keine Clip-URL vorhanden');
     }
+
+    // Extrahiere Clip-ID korrekt aus der URL
+    const clipId = clipUrl.split('/').pop().split('?')[0];
+
+    // Hole Clip-Details
+    const clipData = await callTwitchAPI(`clips?id=${clipId}`);
+    if (!clipData.data || clipData.data.length === 0) {
+        throw new Error('Clip nicht gefunden');
+    }
+
+    const clip = clipData.data[0];
+    const videoUrl = clip.thumbnail_url.replace('-preview-480x272.jpg', '.mp4');
+
+    // Download durchführen
+    const response = await fetch(videoUrl);
+    if (!response.ok) throw new Error('Download fehlgeschlagen');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.mp4';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
 }
 
 // Funktion zum Herunterladen aller Clips
@@ -742,10 +797,17 @@ async function downloadAllClips() {
         // Clip herunterladen
         try {
             await downloadClip(clip.url, filename);
+            // Erfolgsanzeige
+            countDisplay.textContent = `${i+1}/${allClips.length} ✓`;
             // Kurze Pause zwischen Downloads
             await new Promise(resolve => setTimeout(resolve, 500));
         } catch (error) {
             console.error(`Fehler beim Herunterladen von Clip ${i+1}:`, error);
+            // Anzeige für den Benutzer
+            countDisplay.textContent = `${i+1}/${allClips.length} ✗`;
+            // Kurze Pause, damit die Fehlermeldung sichtbar ist
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Fortfahren mit dem nächsten Clip
         }
     }
     
