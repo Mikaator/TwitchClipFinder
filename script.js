@@ -625,9 +625,11 @@ function displayNewClips(clips, startIndex) {
         // Event-Listener für den Download-Button, statt inline onclick
         const downloadButton = clipCard.querySelector('.download-button');
         downloadButton.addEventListener('click', async () => {
+            // Speichere Original-Text des Buttons
+            const originalButtonText = downloadButton.innerHTML;
+            
             try {
                 // Button-Status während des Downloads anzeigen
-                const originalText = downloadButton.innerHTML;
                 downloadButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wird heruntergeladen...';
                 downloadButton.disabled = true;
                 
@@ -639,7 +641,7 @@ function displayNewClips(clips, startIndex) {
                 
                 // Nach kurzer Zeit zurücksetzen
                 setTimeout(() => {
-                    downloadButton.innerHTML = originalText;
+                    downloadButton.innerHTML = originalButtonText;
                     downloadButton.disabled = false;
                 }, 3000);
             } catch (error) {
@@ -648,7 +650,7 @@ function displayNewClips(clips, startIndex) {
                 
                 // Nach kurzer Zeit zurücksetzen
                 setTimeout(() => {
-                    downloadButton.innerHTML = originalText;
+                    downloadButton.innerHTML = originalButtonText;
                     downloadButton.disabled = false;
                 }, 3000);
             }
@@ -830,65 +832,65 @@ async function downloadClip(clipUrl, filename) {
     }
 
     // Extrahiere Clip-ID korrekt aus der URL
+    // clipUrl Format: https://clips.twitch.tv/AbcDefGhiJklMno
     const clipId = clipUrl.split('/').pop().split('?')[0];
 
-    // Hole Clip-Details
-    const clipData = await callTwitchAPI(`clips?id=${clipId}`);
-    if (!clipData.data || clipData.data.length === 0) {
-        throw new Error('Clip nicht gefunden');
-    }
-
-    const clip = clipData.data[0];
-    
-    // Verwende die neue Methode, um die Download-URL zu erhalten
-    // thumbnail_url sieht aus wie: https://clips-media-assets2.twitch.tv/AT-cm%7C1234567890-preview-480x272.jpg
-    // Wir benötigen: https://production.assets.clips.twitchcdn.net/AT-cm%7C1234567890.mp4
-    
-    // Extrahiere die ID aus der thumbnail_url
-    let clipSlug = clip.thumbnail_url.split('-preview-')[0];
-    clipSlug = clipSlug.substring(clipSlug.lastIndexOf('/') + 1);
-    
-    // Baue die neue Download-URL
-    const videoUrl = `https://production.assets.clips.twitchcdn.net/${clipSlug}.mp4`;
-    
-    console.log('Versuche, Clip herunterzuladen:', videoUrl);
-
-    // Download durchführen
     try {
-        const response = await fetch(videoUrl);
-        if (!response.ok) {
-            console.error('Erster Download-Versuch fehlgeschlagen. Probiere alternative URL...');
-            
-            // Alternative URL-Format versuchen
-            const alternativeUrl = `https://clips-media-assets2.twitch.tv/${clipSlug}.mp4`;
-            console.log('Versuche alternative URL:', alternativeUrl);
-            
-            const altResponse = await fetch(alternativeUrl);
-            if (!altResponse.ok) {
-                throw new Error('Download fehlgeschlagen. Clip ist möglicherweise nicht mehr verfügbar.');
-            }
-            
-            const blob = await altResponse.blob();
-            triggerDownload(blob, filename);
-        } else {
-            const blob = await response.blob();
-            triggerDownload(blob, filename);
+        // Hole Clip-Details
+        const clipData = await callTwitchAPI(`clips?id=${clipId}`);
+        if (!clipData.data || clipData.data.length === 0) {
+            throw new Error('Clip nicht gefunden');
         }
+
+        const clip = clipData.data[0];
+        console.log('Clip-Details:', clip);
+        
+        // Extrahiere korrekten Slug aus der thumbnail_url
+        // Format: https://clips-media-assets2.twitch.tv/SLUG-preview-480x272.jpg
+        if (!clip.thumbnail_url) {
+            throw new Error('Clip hat kein Thumbnail');
+        }
+        
+        // Extrahiere die ID aus der thumbnail_url
+        const thumbnailUrl = clip.thumbnail_url;
+        const parts = thumbnailUrl.split('-preview-');
+        
+        if (parts.length < 2) {
+            throw new Error('Ungültiges Thumbnail-URL-Format');
+        }
+        
+        let clipSlug = parts[0];
+        clipSlug = clipSlug.substring(clipSlug.lastIndexOf('/') + 1);
+        
+        if (!clipSlug) {
+            throw new Error('Konnte Clip-Slug nicht extrahieren');
+        }
+        
+        console.log('Extrahierter Clip-Slug:', clipSlug);
+        
+        // Da wir aufgrund von CORS-Einschränkungen den Clip nicht direkt herunterladen können,
+        // leiten wir den Benutzer zu einem URL-Downloader um, der die MP4-Datei herunterladen kann
+        
+        const clipMp4Url = `https://production.assets.clips.twitchcdn.net/${clipSlug}.mp4`;
+        console.log('Clip MP4 URL:', clipMp4Url);
+        
+        // Öffne den Twitch-Clip in einem neuen Tab - der Benutzer kann von dort herunterladen
+        window.open(clipUrl, '_blank');
+        
+        // Zeige eine Anleitung zum manuellen Herunterladen
+        alert(`Aufgrund technischer Einschränkungen können wir den Clip nicht direkt herunterladen. 
+Der Clip wurde in einem neuen Tab geöffnet. 
+Um ihn herunterzuladen:
+1. Klicke mit der rechten Maustaste auf das Video
+2. Wähle "Video speichern unter..."
+3. Speichere es als "${filename}.mp4"`);
+        
+        // Simuliere erfolgreichen Download, damit die UI-Elemente korrekt aktualisiert werden
+        return true;
     } catch (error) {
         console.error('Download-Fehler:', error);
+        alert(`Fehler beim Herunterladen des Clips: ${error.message}`);
         throw error;
-    }
-    
-    // Hilfsfunktion für den Download
-    function triggerDownload(blob, filename) {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename + '.mp4';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
     }
 }
 
