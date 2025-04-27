@@ -832,12 +832,11 @@ async function downloadClip(clipUrl, filename) {
     }
 
     // Extrahiere Clip-ID korrekt aus der URL
-    // clipUrl Format: https://clips.twitch.tv/AbcDefGhiJklMno oder https://www.twitch.tv/channelname/clip/AbcDefGhiJklMno
     const urlParts = clipUrl.split('/');
     const clipId = urlParts[urlParts.length - 1].split('?')[0];
 
     try {
-        // Hole Clip-Details
+        // Hole Clip-Details über die Twitch API
         const clipData = await callTwitchAPI(`clips?id=${clipId}`);
         if (!clipData.data || clipData.data.length === 0) {
             throw new Error('Clip nicht gefunden');
@@ -845,22 +844,107 @@ async function downloadClip(clipUrl, filename) {
 
         const clip = clipData.data[0];
         console.log('Clip-Details:', clip);
-        console.log('Thumbnail URL:', clip.thumbnail_url);
         
-        // Direkt den Clip in einem neuen Tab öffnen, statt zu versuchen, ihn herunterzuladen
-        // Dies umgeht die CORS-Einschränkungen
-        window.open(clip.url, '_blank');
+        // Zeige Lade-Animation auf dem Button an
+        const downloadingPopup = document.createElement('div');
+        downloadingPopup.style.position = 'fixed';
+        downloadingPopup.style.top = '50%';
+        downloadingPopup.style.left = '50%';
+        downloadingPopup.style.transform = 'translate(-50%, -50%)';
+        downloadingPopup.style.background = 'rgba(145, 71, 255, 0.9)';
+        downloadingPopup.style.color = 'white';
+        downloadingPopup.style.padding = '20px 30px';
+        downloadingPopup.style.borderRadius = '10px';
+        downloadingPopup.style.zIndex = '9999';
+        downloadingPopup.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.5)';
+        downloadingPopup.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 10px;"></i> Lade Clip herunter...';
+        document.body.appendChild(downloadingPopup);
         
-        // Zeige eine Anleitung zum manuellen Herunterladen
-        alert(`Aufgrund technischer Einschränkungen können wir den Clip nicht direkt herunterladen. 
-Der Clip wurde in einem neuen Tab geöffnet. 
-Um ihn herunterzuladen:
-1. Klicke mit der rechten Maustaste auf das Video
-2. Wähle "Video speichern unter..."
-3. Speichere es als "${filename}.mp4"`);
+        // Wir verwenden einen kostenlosen CORS-Proxy-Dienst, um die CORS-Einschränkungen zu umgehen
+        // Dieser erlaubt uns, die Twitch-Ressourcen direkt zu laden
         
-        // Simuliere erfolgreichen Download, damit die UI-Elemente korrekt aktualisiert werden
-        return true;
+        // Konstruiere die URLs für den Download
+        // Wir probieren verschiedene Methoden, da sich Twitch-URLs ändern können
+        // Hier generieren wir aus der Clip-ID die wahrscheinlichen Video-URLs
+        
+        // Extrahiere Informationen für die URL-Konstruktion
+        const clipSlug = clipId.includes('-') ? clipId.split('-')[0] : clipId;
+        
+        // Definiere mögliche URL-Muster
+        const possibleUrls = [
+            // URL-Muster 1: Direkt aus der Thumbnail URL abgeleitet (wenn vorhanden)
+            clip.thumbnail_url ? clip.thumbnail_url.replace('-preview-480x272.jpg', '.mp4') : null,
+            
+            // URL-Muster 2: Format von produktiven Assets
+            `https://production.assets.clips.twitchcdn.net/${clipSlug}.mp4`,
+            
+            // URL-Muster 3: Alternatives Format
+            `https://clips-media-assets2.twitch.tv/${clipSlug}.mp4`
+        ].filter(url => url !== null);
+        
+        // CORS-Proxy wählen (wir verwenden mehrere Optionen für mehr Zuverlässigkeit)
+        const corsProxies = [
+            'https://corsproxy.io/?',
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.herokuapp.com/'
+        ];
+        
+        // Versuche die Download-URLs der Reihe nach mit verschiedenen Proxies
+        let downloadSuccess = false;
+        let errorMessages = [];
+        
+        for (const corsProxy of corsProxies) {
+            if (downloadSuccess) break;
+            
+            for (const url of possibleUrls) {
+                try {
+                    const proxyUrl = corsProxy + encodeURIComponent(url);
+                    console.log(`Versuche Download über: ${proxyUrl}`);
+                    
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) {
+                        errorMessages.push(`Fehler bei ${url}: ${response.status} ${response.statusText}`);
+                        continue;
+                    }
+                    
+                    // Erfolgreicher Download
+                    const blob = await response.blob();
+                    
+                    // Erzeugen des Download-Links
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = `${filename}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(downloadUrl);
+                    a.remove();
+                    
+                    downloadSuccess = true;
+                    break;
+                } catch (err) {
+                    console.error(`Fehler beim Herunterladen von ${url}:`, err);
+                    errorMessages.push(`Fehler bei ${url}: ${err.message}`);
+                }
+            }
+        }
+        
+        // Entferne das Lade-Popup
+        document.body.removeChild(downloadingPopup);
+        
+        if (!downloadSuccess) {
+            // Wenn alle Methoden fehlschlagen, zeige einen Hinweis
+            const errorMessage = `Es konnte kein direkter Download durchgeführt werden.\n\nBitte versuche manuell herunterzuladen von: ${clip.url}\n\nFehlerdetails: ${errorMessages.join(', ')}`;
+            alert(errorMessage);
+            console.error('Alle Download-Methoden fehlgeschlagen:', errorMessages);
+            
+            // Öffne den Clip direkt, damit der Benutzer ihn manuell herunterladen kann
+            window.open(clip.url, '_blank');
+            throw new Error('Direkter Download fehlgeschlagen');
+        } else {
+            return true;
+        }
+        
     } catch (error) {
         console.error('Download-Fehler:', error);
         alert(`Fehler beim Herunterladen des Clips: ${error.message}`);
